@@ -3,7 +3,7 @@ import { ProductGroup, Product } from "@shared/schema";
 import { ShoppingCart, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import CryptoPaymentModal from "./crypto-payment-modal";
+import { useLocation } from "wouter";
 
 interface ProductGroupCardProps {
   group: ProductGroup;
@@ -11,12 +11,12 @@ interface ProductGroupCardProps {
 
 export default function ProductGroupCard({ group }: ProductGroupCardProps) {
   const [selectedVariant, setSelectedVariant] = useState(group.variants[0]);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [, setLocation] = useLocation();
 
   const isInStock = selectedVariant.inStock && selectedVariant.stockQuantity > 0;
   const hasDiscount = selectedVariant.originalPrice && parseFloat(selectedVariant.originalPrice) > parseFloat(selectedVariant.price);
 
-  // Create a virtual Product object for the payment modal
+  // Create a virtual Product object for the checkout page
   const createProductFromVariant = (): Product => ({
     id: selectedVariant.id,
     name: `${group.name} - ${selectedVariant.name}`,
@@ -34,7 +34,8 @@ export default function ProductGroupCard({ group }: ProductGroupCardProps) {
   });
 
   const handleCheckoutClick = () => {
-    setShowPaymentModal(true);
+    const productData = encodeURIComponent(JSON.stringify(createProductFromVariant()));
+    setLocation(`/checkout/${productData}`);
   };
 
   return (
@@ -141,12 +142,6 @@ export default function ProductGroupCard({ group }: ProductGroupCardProps) {
           {isInStock ? 'Checkout' : 'Out of Stock'}
         </Button>
       </div>
-
-      <CryptoPaymentModal
-        product={createProductFromVariant()}
-        open={showPaymentModal}
-        onOpenChange={setShowPaymentModal}
-      />
     </div>
   );
 }

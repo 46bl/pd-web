@@ -1,20 +1,20 @@
-import { useState } from "react";
 import { Product } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Check, X, Package } from "lucide-react";
-import CryptoPaymentModal from "./crypto-payment-modal";
+import { useLocation } from "wouter";
 
 interface ProductCardProps {
   product: Product;
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [, setLocation] = useLocation();
   const isInStock = product.inStock && product.stockQuantity > 0;
   const hasDiscount = product.originalPrice && parseFloat(product.originalPrice) > parseFloat(product.price);
 
   const handleCheckoutClick = () => {
-    setShowPaymentModal(true);
+    const productData = encodeURIComponent(JSON.stringify(product));
+    setLocation(`/checkout/${productData}`);
   };
 
   return (
@@ -107,12 +107,6 @@ export default function ProductCard({ product }: ProductCardProps) {
           </Button>
         </div>
       </div>
-
-      <CryptoPaymentModal
-        product={product}
-        open={showPaymentModal}
-        onOpenChange={setShowPaymentModal}
-      />
     </div>
   );
 }
