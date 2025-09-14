@@ -1,14 +1,21 @@
+import { useState } from "react";
 import { Product } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Check, X, Package } from "lucide-react";
+import CryptoPaymentModal from "./crypto-payment-modal";
 
 interface ProductCardProps {
   product: Product;
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const isInStock = product.inStock && product.stockQuantity > 0;
   const hasDiscount = product.originalPrice && parseFloat(product.originalPrice) > parseFloat(product.price);
+
+  const handleCheckoutClick = () => {
+    setShowPaymentModal(true);
+  };
 
   return (
     <div className={`bg-card rounded-lg border border-border overflow-hidden card-hover neon-border ${!isInStock ? 'opacity-75' : ''}`} data-testid={`card-product-${product.id}`}>
@@ -93,12 +100,19 @@ export default function ProductCard({ product }: ProductCardProps) {
                 : 'bg-muted text-muted-foreground cursor-not-allowed'
             }`}
             disabled={!isInStock}
+            onClick={handleCheckoutClick}
             data-testid={`button-checkout-${product.id}`}
           >
             {isInStock ? 'Checkout' : 'Out of Stock'}
           </Button>
         </div>
       </div>
+
+      <CryptoPaymentModal
+        product={product}
+        open={showPaymentModal}
+        onOpenChange={setShowPaymentModal}
+      />
     </div>
   );
 }

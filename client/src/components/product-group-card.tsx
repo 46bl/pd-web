@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { ProductGroup } from "@shared/schema";
+import { ProductGroup, Product } from "@shared/schema";
 import { ShoppingCart, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import CryptoPaymentModal from "./crypto-payment-modal";
 
 interface ProductGroupCardProps {
   group: ProductGroup;
@@ -10,9 +11,31 @@ interface ProductGroupCardProps {
 
 export default function ProductGroupCard({ group }: ProductGroupCardProps) {
   const [selectedVariant, setSelectedVariant] = useState(group.variants[0]);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const isInStock = selectedVariant.inStock && selectedVariant.stockQuantity > 0;
   const hasDiscount = selectedVariant.originalPrice && parseFloat(selectedVariant.originalPrice) > parseFloat(selectedVariant.price);
+
+  // Create a virtual Product object for the payment modal
+  const createProductFromVariant = (): Product => ({
+    id: selectedVariant.id,
+    name: `${group.name} - ${selectedVariant.name}`,
+    description: group.description,
+    price: selectedVariant.price,
+    originalPrice: selectedVariant.originalPrice,
+    category: group.category,
+    game: group.game,
+    stockQuantity: selectedVariant.stockQuantity,
+    inStock: selectedVariant.inStock,
+    imageUrl: group.imageUrl,
+    deliveryUrl: selectedVariant.deliveryUrl,
+    licenseKey: selectedVariant.licenseKey,
+    deliveryType: group.deliveryType,
+  });
+
+  const handleCheckoutClick = () => {
+    setShowPaymentModal(true);
+  };
 
   return (
     <div className={`bg-card rounded-lg border border-border overflow-hidden card-hover neon-border ${!isInStock ? 'opacity-75' : ''}`} data-testid={`card-group-${group.id}`}>
@@ -111,12 +134,19 @@ export default function ProductGroupCard({ group }: ProductGroupCardProps) {
               : 'bg-muted text-muted-foreground cursor-not-allowed'
           }`}
           disabled={!isInStock}
+          onClick={handleCheckoutClick}
           data-testid={`button-checkout-${group.id}`}
         >
           <ShoppingCart className="w-4 h-4 mr-2" />
           {isInStock ? 'Checkout' : 'Out of Stock'}
         </Button>
       </div>
+
+      <CryptoPaymentModal
+        product={createProductFromVariant()}
+        open={showPaymentModal}
+        onOpenChange={setShowPaymentModal}
+      />
     </div>
   );
 }
