@@ -22,14 +22,14 @@ export default function ProductGroupCard({ group }: ProductGroupCardProps) {
     name: `${group.name} - ${selectedVariant.name}`,
     description: group.description,
     price: selectedVariant.price,
-    originalPrice: selectedVariant.originalPrice,
+    originalPrice: selectedVariant.originalPrice || null,
     category: group.category,
     game: group.game,
     stockQuantity: selectedVariant.stockQuantity,
     inStock: selectedVariant.inStock,
-    imageUrl: group.imageUrl,
-    deliveryUrl: selectedVariant.deliveryUrl,
-    licenseKey: selectedVariant.licenseKey,
+    imageUrl: group.imageUrl || null,
+    deliveryUrl: selectedVariant.deliveryUrl || null,
+    licenseKey: selectedVariant.licenseKey || null,
     deliveryType: group.deliveryType,
   });
 
