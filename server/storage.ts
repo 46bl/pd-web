@@ -698,7 +698,7 @@ export class MemStorage implements IStorage {
       {
         name: "DMA Firmware",
         description: "Professional DMA firmware for advanced users",
-        category: "DMA Hardware",
+        category: "DMA Firmware",
         game: "Multi-Game",
         imageUrl: "https://i.postimg.cc/BvnhB1Gk/image.png",
         deliveryType: "download",
