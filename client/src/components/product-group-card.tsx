@@ -24,7 +24,7 @@ export default function ProductGroupCard({ group }: ProductGroupCardProps) {
     price: selectedVariant.price,
     originalPrice: selectedVariant.originalPrice || null,
     category: group.category,
-    game: group.game,
+    game: group.game || "",
     stockQuantity: selectedVariant.stockQuantity,
     inStock: selectedVariant.inStock,
     imageUrl: group.imageUrl || null,
