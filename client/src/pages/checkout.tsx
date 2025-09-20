@@ -56,18 +56,60 @@ export default function CheckoutPage() {
     }
   };
 
+  const checkBlockchainPayment = async (address: string, network: string): Promise<{ confirmations: number; received: number }> => {
+    try {
+      // Use BlockCypher API for real blockchain monitoring
+      const apiUrl = `https://api.blockcypher.com/v1/${network}/main/addrs/${address}`;
+      const response = await fetch(apiUrl);
+      
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Check for unconfirmed and confirmed transactions
+      const totalReceived = data.total_received || 0;
+      const unconfirmedBalance = data.unconfirmed_balance || 0;
+      const balance = data.balance || 0;
+      
+      // Calculate confirmations based on confirmed transactions
+      let confirmations = 0;
+      if (data.txrefs && data.txrefs.length > 0) {
+        // Get the most recent transaction
+        const latestTx = data.txrefs[0];
+        confirmations = latestTx.confirmations || 0;
+      }
+      
+      return {
+        confirmations: Math.min(confirmations, 6), // Cap at 6 confirmations for display
+        received: totalReceived / 100000000 // Convert from satoshis to main unit
+      };
+    } catch (error) {
+      console.error('Blockchain API error:', error);
+      throw error;
+    }
+  };
+
   const startPaymentDetection = () => {
     if (!product || selectedMethod === 'paypal') return;
     
     setIsDetecting(true);
     setConfirmations(0);
     
-    // Simulate blockchain monitoring - check every 10 seconds
-    const checkInterval = setInterval(() => {
-      setConfirmations(prev => {
-        const newConfirmations = prev + 1;
+    const address = paymentAddresses[selectedMethod];
+    const network = selectedMethod === 'bitcoin' ? 'btc' : 'ltc';
+    const expectedAmount = parseFloat(product.price);
+    
+    // Real blockchain monitoring - check every 2 minutes
+    const checkInterval = setInterval(async () => {
+      try {
+        const result = await checkBlockchainPayment(address, network);
         
-        if (newConfirmations >= 2) {
+        // Check if payment amount is sufficient (allowing for small variations)
+        const paymentReceived = result.received >= (expectedAmount * 0.95); // 5% tolerance
+        
+        if (paymentReceived && result.confirmations >= 2) {
           // Payment confirmed after 2 confirmations
           clearInterval(checkInterval);
           setPaymentConfirmed(true);
@@ -75,13 +117,17 @@ export default function CheckoutPage() {
           
           // Redirect after successful confirmation
           setTimeout(() => {
-            alert(`✅ Payment Confirmed!\\n\\n${product.name} has been successfully purchased.\\nYour product will be delivered to your email shortly.`);
+            alert(`✅ Payment Confirmed!\\n\\n${product.name} has been successfully purchased.\\nReceived: ${result.received} ${selectedMethod.toUpperCase()}\\nConfirmations: ${result.confirmations}\\n\\nYour product will be delivered to your email shortly.`);
             setLocation('/products');
           }, 2000);
+        } else if (paymentReceived) {
+          // Payment received but need more confirmations
+          setConfirmations(result.confirmations);
         }
-        
-        return newConfirmations;
-      });
+      } catch (error) {
+        console.error('Payment detection error:', error);
+        // Continue checking despite errors
+      }
     }, 120000); // Check every 2 minutes
   };
 
