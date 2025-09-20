@@ -82,7 +82,7 @@ export default function CheckoutPage() {
         
         return newConfirmations;
       });
-    }, 10000); // Check every 10 seconds for demo purposes
+    }, 120000); // Check every 2 minutes
   };
 
   const handlePaymentConfirmation = () => {
