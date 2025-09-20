@@ -4,7 +4,7 @@ import { Product } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Check, Bitcoin, Coins, QrCode, Mail, ArrowLeft } from "lucide-react";
+import { Copy, Check, Bitcoin, Coins, QrCode, Mail, ArrowLeft, CheckCircle, Clock } from "lucide-react";
 
 type PaymentMethod = 'bitcoin' | 'litecoin' | 'paypal';
 
@@ -15,6 +15,9 @@ export default function CheckoutPage() {
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [randomNote, setRandomNote] = useState<string>('');
   const [product, setProduct] = useState<Product | null>(null);
+  const [isDetecting, setIsDetecting] = useState<boolean>(false);
+  const [confirmations, setConfirmations] = useState<number>(0);
+  const [paymentConfirmed, setPaymentConfirmed] = useState<boolean>(false);
 
   // Payment addresses and details
   const paymentAddresses = {
@@ -53,17 +56,50 @@ export default function CheckoutPage() {
     }
   };
 
+  const startPaymentDetection = () => {
+    if (!product || selectedMethod === 'paypal') return;
+    
+    setIsDetecting(true);
+    setConfirmations(0);
+    
+    // Simulate blockchain monitoring - check every 10 seconds
+    const checkInterval = setInterval(() => {
+      setConfirmations(prev => {
+        const newConfirmations = prev + 1;
+        
+        if (newConfirmations >= 2) {
+          // Payment confirmed after 2 confirmations
+          clearInterval(checkInterval);
+          setPaymentConfirmed(true);
+          setIsDetecting(false);
+          
+          // Redirect after successful confirmation
+          setTimeout(() => {
+            alert(`✅ Payment Confirmed!\\n\\n${product.name} has been successfully purchased.\\nYour product will be delivered to your email shortly.`);
+            setLocation('/products');
+          }, 2000);
+        }
+        
+        return newConfirmations;
+      });
+    }, 10000); // Check every 10 seconds for demo purposes
+  };
+
   const handlePaymentConfirmation = () => {
     if (!product) return;
 
-    const paymentType = selectedMethod === 'paypal' ? 'PayPal Friends & Family' : selectedMethod.toUpperCase();
-    alert(`Payment initiated for ${product.name} via ${paymentType}!\\n\\nYour order will be processed automatically once the payment is confirmed.`);
-    
-    // In a real implementation, this would trigger payment verification
-    // For now, redirect back to products
-    setTimeout(() => {
-      setLocation('/products');
-    }, 2000);
+    if (selectedMethod === 'paypal') {
+      // PayPal payments are manual confirmation
+      const paymentType = 'PayPal Friends & Family';
+      alert(`Payment initiated for ${product.name} via ${paymentType}!\\n\\nYour order will be processed automatically once the payment is confirmed.`);
+      
+      setTimeout(() => {
+        setLocation('/products');
+      }, 2000);
+    } else {
+      // Start automatic crypto detection
+      startPaymentDetection();
+    }
   };
 
   const openPayPalApp = () => {
@@ -277,6 +313,52 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
+                {/* Payment Detection Status */}
+                {isDetecting && selectedMethod !== 'paypal' && (
+                  <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Clock className="w-5 h-5 text-blue-500 animate-spin" />
+                      <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+                        Detecting Payment...
+                      </h3>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-blue-700 dark:text-blue-300">Blockchain Confirmations:</span>
+                        <span className="font-mono text-sm font-bold text-blue-900 dark:text-blue-100">
+                          {confirmations}/2
+                        </span>
+                      </div>
+                      <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+                        <div 
+                          className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${(confirmations / 2) * 100}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-blue-600 dark:text-blue-400">
+                        Waiting for {2 - confirmations} more confirmation{2 - confirmations !== 1 ? 's' : ''}...
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Payment Confirmed Status */}
+                {paymentConfirmed && (
+                  <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-4">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="w-5 h-5 text-green-500" />
+                      <div>
+                        <h3 className="font-semibold text-green-900 dark:text-green-100">
+                          Payment Confirmed!
+                        </h3>
+                        <p className="text-sm text-green-700 dark:text-green-300">
+                          Your order is being processed. You'll receive your product shortly.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Action Buttons */}
                 <div className="flex gap-4 pt-4">
                   <Button
@@ -284,6 +366,7 @@ export default function CheckoutPage() {
                     onClick={() => setLocation('/products')}
                     className="flex-1"
                     size="lg"
+                    disabled={isDetecting}
                   >
                     Cancel
                   </Button>
@@ -291,8 +374,9 @@ export default function CheckoutPage() {
                     onClick={handlePaymentConfirmation}
                     className="flex-1"
                     size="lg"
+                    disabled={isDetecting || paymentConfirmed}
                   >
-                    I've Sent Payment
+                    {isDetecting ? 'Detecting...' : paymentConfirmed ? 'Confirmed' : selectedMethod === 'paypal' ? "I've Sent Payment" : 'I\'ve Sent Payment'}
                   </Button>
                 </div>
               </CardContent>
