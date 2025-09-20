@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Clock, Users, Zap, CheckCircle, Star } from "lucide-react";
+import logoImage from "@assets/PSD_1757608013041.png";
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -258,7 +259,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">
               <div className="text-2xl font-bold text-primary flex items-center mb-4">
-                <img src="@assets/PSD_1757608013041.png" alt="PlayDirty" className="w-6 h-6 mr-2" />
+                <img src={logoImage} alt="PlayDirty" className="w-8 h-8 mr-2" />
                 PlayDirty
               </div>
               <p className="text-muted-foreground mb-4">
