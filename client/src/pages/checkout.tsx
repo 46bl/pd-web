@@ -22,7 +22,7 @@ export default function CheckoutPage() {
   // Payment addresses and details
   const paymentAddresses = {
     bitcoin: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
-    litecoin: 'ltc1qw4kv8dfh7jq4g2x8t5j9k7l3m4n5o6p7q8r9s'
+    litecoin: 'Lg6GPVfPsmPAbTWYuKBQXtdGnBuCWcxHcr'
   };
 
   const paypalEmail = 'sexgirlaccs@gmail.com';
