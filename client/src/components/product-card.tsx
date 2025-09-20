@@ -25,7 +25,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             {product.category}
           </span>
           {hasDiscount && (
-            <span className="px-2 py-1 bg-red-500 text-white text-xs font-medium rounded-md">
+            <span className="px-2 py-1 bg-purple-600 text-white text-xs font-medium rounded-md">
               SALE
             </span>
           )}
@@ -58,7 +58,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             className={`text-xs px-2 py-1 rounded-full flex items-center space-x-1 ${
               isInStock 
                 ? 'bg-green-600 text-white' 
-                : 'bg-red-600 text-white'
+                : 'bg-purple-600 text-white'
             }`}
             data-testid={`status-stock-${product.id}`}
           >

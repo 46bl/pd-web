@@ -46,7 +46,7 @@ export default function ProductGroupCard({ group }: ProductGroupCardProps) {
             {group.category}
           </span>
           {hasDiscount && (
-            <span className="px-2 py-1 bg-red-500 text-white text-xs font-medium rounded-md">
+            <span className="px-2 py-1 bg-purple-600 text-white text-xs font-medium rounded-md">
               SALE
             </span>
           )}
@@ -122,7 +122,7 @@ export default function ProductGroupCard({ group }: ProductGroupCardProps) {
           
           <div className="text-right">
             <div className="text-sm text-muted-foreground">Stock</div>
-            <div className={`text-sm font-medium ${isInStock ? 'text-green-500' : 'text-red-500'}`} data-testid={`text-stock-${group.id}`}>
+            <div className={`text-sm font-medium ${isInStock ? 'text-green-500' : 'text-purple-600'}`} data-testid={`text-stock-${group.id}`}>
               {isInStock ? `${selectedVariant.stockQuantity} available` : 'Out of stock'}
             </div>
           </div>

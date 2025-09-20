@@ -15,7 +15,7 @@ export default function About() {
       <div className="container mx-auto px-4 py-16">
         <div className="text-center max-w-4xl mx-auto">
           <h1 className="text-5xl md:text-7xl font-bold text-foreground mb-6" data-testid="text-page-title">
-            About <span className="text-red-500">Us</span>
+            About <span className="text-purple-600">Us</span>
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground mb-8 leading-relaxed">
             PlayDirty is your premier destination for cutting-edge gaming enhancement tools and solutions. 
@@ -49,7 +49,7 @@ export default function About() {
             <Card className="border border-border bg-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Heart className="w-6 h-6 text-red-500" />
+                  <Heart className="w-6 h-6 text-purple-600" />
                   Our Values
                 </CardTitle>
               </CardHeader>
@@ -77,7 +77,7 @@ export default function About() {
       <div className="container mx-auto px-4 py-16 bg-muted/30">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-12 text-center">
-            What Sets <span className="text-red-500">Us</span> Apart
+            What Sets <span className="text-purple-600">Us</span> Apart
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
             <Card className="border border-border bg-card text-center">
