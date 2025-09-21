@@ -254,7 +254,7 @@ export default function Products() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">
               <div className="text-2xl font-bold text-primary flex items-center mb-4">
-                <img src="@assets/PSD_1757608013041.png" alt="PlayDirty" className="w-6 h-6 mr-2" />
+                <img src="https://i.postimg.cc/0j1BFrgF/Untitled-3.png" alt="PlayDirty" className="w-6 h-6 mr-2" />
                 PlayDirty
               </div>
               <p className="text-muted-foreground mb-4">

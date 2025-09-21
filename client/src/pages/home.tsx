@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Clock, Users, Zap, CheckCircle, Star } from "lucide-react";
-import logoImage from "@assets/PSD_1757608013041.png";
+const logoImage = "https://i.postimg.cc/0j1BFrgF/Untitled-3.png";
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");

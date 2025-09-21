@@ -3,7 +3,7 @@ import { Search, Menu, Gamepad2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import logoImage from "@assets/PSD_1757608013041.png";
+const logoImage = "https://i.postimg.cc/0j1BFrgF/Untitled-3.png";
 
 interface HeaderProps {
   searchQuery: string;
