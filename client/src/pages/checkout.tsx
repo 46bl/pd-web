@@ -4,14 +4,44 @@ import { Product } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Copy, CheckCircle } from "lucide-react";
 
-type PaymentMethod = never;
+type PaymentMethod = 'bitcoin' | 'ethereum' | 'litecoin';
+
+interface CryptoWallet {
+  name: string;
+  symbol: string;
+  address: string;
+  color: string;
+}
+
+const cryptoWallets: Record<PaymentMethod, CryptoWallet> = {
+  bitcoin: {
+    name: 'Bitcoin',
+    symbol: 'BTC',
+    address: 'bc1q23qag8hte7cgstjm2lm82m2r26td83gvj7y3k3',
+    color: 'text-orange-500'
+  },
+  ethereum: {
+    name: 'Ethereum',
+    symbol: 'ETH',
+    address: '0x66b07DFe9025aA5D9F073Ca9aC7B5a4b9C348C1d',
+    color: 'text-blue-500'
+  },
+  litecoin: {
+    name: 'Litecoin',
+    symbol: 'LTC',
+    address: 'LdybeZA3CS7t6sMNb88ZEyHoJPGhYCNZmj',
+    color: 'text-gray-400'
+  }
+};
 
 export default function CheckoutPage() {
   const [, setLocation] = useLocation();
   const [match, params] = useRoute("/checkout/:productData");
   const [product, setProduct] = useState<Product | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod | null>(null);
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
   useEffect(() => {
     if (params?.productData) {
@@ -27,6 +57,15 @@ export default function CheckoutPage() {
     }
   }, [params, setLocation]);
 
+  const copyToClipboard = async (address: string) => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopiedAddress(address);
+      setTimeout(() => setCopiedAddress(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy address:', err);
+    }
+  };
 
   if (!product) {
     return (
@@ -97,13 +136,83 @@ export default function CheckoutPage() {
                 <CardTitle>Payment Options</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* No Payment Methods Available */}
-                <div className="bg-muted/20 p-8 rounded-lg text-center">
-                  <h3 className="font-semibold text-lg mb-2">Payment Methods Temporarily Unavailable</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    We're currently updating our payment systems. Please check back later or contact support.
-                  </p>
+                {/* Cryptocurrency Payment Methods */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg">Select Cryptocurrency</h3>
+                  <div className="grid gap-4">
+                    {Object.entries(cryptoWallets).map(([key, wallet]) => (
+                      <Card 
+                        key={key}
+                        className={`cursor-pointer transition-all border-2 ${
+                          selectedPayment === key 
+                            ? 'border-primary bg-primary/5' 
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                        onClick={() => setSelectedPayment(key as PaymentMethod)}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-full bg-muted flex items-center justify-center ${wallet.color} font-bold`}>
+                                {wallet.symbol}
+                              </div>
+                              <div>
+                                <h4 className="font-semibold">{wallet.name}</h4>
+                                <p className="text-sm text-muted-foreground">{wallet.symbol}</p>
+                              </div>
+                            </div>
+                            <div className={`w-4 h-4 rounded-full border-2 ${
+                              selectedPayment === key 
+                                ? 'border-primary bg-primary' 
+                                : 'border-muted-foreground'
+                            }`} />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
+
+                {/* Payment Instructions */}
+                {selectedPayment && (
+                  <div className="bg-muted/20 p-6 rounded-lg border border-border">
+                    <h3 className="font-semibold text-lg mb-4">Payment Instructions</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Send exactly <span className="font-bold text-primary">${product.price}</span> worth of {cryptoWallets[selectedPayment].name} to:
+                        </p>
+                        <div className="flex items-center gap-2 p-3 bg-background rounded border">
+                          <code className="flex-1 text-sm font-mono break-all">
+                            {cryptoWallets[selectedPayment].address}
+                          </code>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => copyToClipboard(cryptoWallets[selectedPayment].address)}
+                            className="shrink-0"
+                          >
+                            {copiedAddress === cryptoWallets[selectedPayment].address ? (
+                              <CheckCircle className="w-4 h-4 text-green-500" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded">
+                        <h4 className="font-semibold text-yellow-600 mb-2">Important:</h4>
+                        <ul className="text-sm text-yellow-700 space-y-1">
+                          <li>• Double-check the wallet address before sending</li>
+                          <li>• Send the exact USD amount in {cryptoWallets[selectedPayment].symbol}</li>
+                          <li>• Transaction may take 10-60 minutes to confirm</li>
+                          <li>• Contact support if you need assistance</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Action Buttons */}
                 <div className="flex gap-4 pt-4">
@@ -115,6 +224,18 @@ export default function CheckoutPage() {
                   >
                     Back to Products
                   </Button>
+                  {selectedPayment && (
+                    <Button
+                      className="flex-1"
+                      size="lg"
+                      onClick={() => {
+                        // Here you could integrate with a payment confirmation system
+                        alert(`Payment instructions sent! Send ${product.price} USD worth of ${cryptoWallets[selectedPayment].name} to the provided address.`);
+                      }}
+                    >
+                      I've Sent Payment
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     onClick={() => setLocation('/')}
