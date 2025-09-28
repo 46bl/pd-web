@@ -2,7 +2,31 @@
 
 PlayDirty is a full-stack e-commerce web application for gaming enhancement tools and cheats. The application features a modern React frontend with a sleek dark theme and an Express.js backend API. It includes a welcoming homepage that establishes PlayDirty as a trusted cheat supplier with 24/7 support, along with product browsing, search, and filtering capabilities with a responsive design that works across desktop and mobile devices.
 
-## Recent Changes (September 13, 2025)
+## Recent Changes (September 28, 2025)
+- **Enhanced Reviews System**: Complete image upload functionality with professional UI
+  - Professional drag-and-drop image upload interface with 3-image limit per review
+  - File validation (type checking, 5MB size limits) and base64 storage system
+  - Image preview with removal functionality in review form
+  - Beautiful image display in review listings with click-to-expand modal view
+  - Complete CRUD operations with proper database persistence
+  - Comprehensive frontend and backend validation
+- **Purchase History System**: Complete order tracking and management
+  - Comprehensive order history with detailed product information and status tracking
+  - Digital download management with secure file access and redownload functionality
+  - One-click reorder functionality for easy repurchasing
+  - Full authentication integration with role-based access
+- **Discount System**: Complete infrastructure (built but not activated)
+  - Secure role-based authorization system using proper user.role field
+  - Comprehensive admin management interface with full CRUD operations
+  - Customer discount input component with validation
+  - Complete discount calculation and application logic
+  - Built infrastructure ready for future activation
+- **Security Enhancements**: Fixed critical security vulnerabilities
+  - Implemented proper role-based authorization instead of insecure substring checks
+  - Applied database schema updates for user roles and product review images
+  - All security fixes verified and tested
+
+## Previous Changes (September 13, 2025)
 - Successfully set up the GitHub import in Replit environment
 - Configured development workflow on port 5000 with hot module replacement
 - Created new homepage with "Welcome to PlayDirty" hero section

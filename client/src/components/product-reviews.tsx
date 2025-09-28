@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Star, ThumbsUp, User, Verified, Edit, Trash2 } from 'lucide-react';
+import { Star, ThumbsUp, User, Verified, Edit, Trash2, Upload, X, Image as ImageIcon } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface ProductReview {
@@ -16,6 +16,7 @@ interface ProductReview {
   rating: number;
   title?: string;
   comment?: string;
+  images?: string; // JSON string array of image URLs/base64
   isVerifiedPurchase: boolean;
   helpfulCount: number;
   createdAt: string;
@@ -32,6 +33,7 @@ interface ReviewFormData {
   rating: number;
   title: string;
   comment: string;
+  images: string[]; // Array of base64 image data
 }
 
 // Star Rating Component
@@ -78,8 +80,10 @@ export default function ProductReviews({ productId, currentUserId, onReviewAdded
   const [formData, setFormData] = useState<ReviewFormData>({
     rating: 5,
     title: '',
-    comment: ''
+    comment: '',
+    images: []
   });
+  const [uploadingImages, setUploadingImages] = useState(false);
   const [editingReview, setEditingReview] = useState<ProductReview | null>(null);
   const [deletingReview, setDeletingReview] = useState<string | null>(null);
 
@@ -123,7 +127,10 @@ export default function ProductReviews({ productId, currentUserId, onReviewAdded
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify({
+            ...formData,
+            images: formData.images.length > 0 ? JSON.stringify(formData.images) : undefined
+          }),
         });
       } else {
         // Create new review
@@ -132,14 +139,17 @@ export default function ProductReviews({ productId, currentUserId, onReviewAdded
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify({
+            ...formData,
+            images: formData.images.length > 0 ? JSON.stringify(formData.images) : undefined
+          }),
         });
       }
 
       if (response.ok) {
         setShowForm(false);
         setEditingReview(null);
-        setFormData({ rating: 5, title: '', comment: '' });
+        setFormData({ rating: 5, title: '', comment: '', images: [] });
         fetchReviews();
         onReviewAdded?.();
       } else {
@@ -175,7 +185,8 @@ export default function ProductReviews({ productId, currentUserId, onReviewAdded
     setFormData({
       rating: review.rating,
       title: review.title || '',
-      comment: review.comment || ''
+      comment: review.comment || '',
+      images: review.images ? JSON.parse(review.images) : []
     });
     setShowForm(true);
   };
@@ -207,7 +218,80 @@ export default function ProductReviews({ productId, currentUserId, onReviewAdded
   const handleCancelEdit = () => {
     setEditingReview(null);
     setShowForm(false);
-    setFormData({ rating: 5, title: '', comment: '' });
+    setFormData({ rating: 5, title: '', comment: '', images: [] });
+  };
+
+  // Image upload handling
+  const handleImageUpload = async (files: FileList) => {
+    if (!files || files.length === 0) return;
+    
+    // Limit to 3 images per review
+    const maxImages = 3;
+    const currentCount = formData.images.length;
+    const remainingSlots = maxImages - currentCount;
+    
+    if (remainingSlots <= 0) {
+      alert(`Maximum ${maxImages} images allowed per review`);
+      return;
+    }
+
+    setUploadingImages(true);
+    
+    try {
+      const newImages: string[] = [];
+      const filesToProcess = Array.from(files).slice(0, remainingSlots);
+      
+      for (const file of filesToProcess) {
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+          alert('Please select only image files');
+          continue;
+        }
+        
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          alert('Image size must be less than 5MB');
+          continue;
+        }
+        
+        // Convert to base64
+        const base64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+        
+        newImages.push(base64);
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, ...newImages]
+      }));
+      
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      alert('Failed to upload images');
+    } finally {
+      setUploadingImages(false);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
+  };
+
+  // Parse review images for display
+  const parseReviewImages = (images?: string): string[] => {
+    if (!images) return [];
+    try {
+      return JSON.parse(images);
+    } catch {
+      return [];
+    }
   };
 
   // Calculate average rating
@@ -291,6 +375,61 @@ export default function ProductReviews({ productId, currentUserId, onReviewAdded
                   rows={4}
                 />
               </div>
+
+              {/* Image Upload Section */}
+              <div>
+                <Label>Photos (Optional)</Label>
+                <div className="mt-2 space-y-3">
+                  {/* Image Preview Grid */}
+                  {formData.images.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {formData.images.map((image, index) => (
+                        <div key={index} className="relative group">
+                          <img
+                            src={image}
+                            alt={`Review image ${index + 1}`}
+                            className="w-full h-20 object-cover rounded-lg border"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Upload Button */}
+                  {formData.images.length < 3 && (
+                    <div className="border-2 border-dashed border-muted rounded-lg p-4">
+                      <input
+                        type="file"
+                        id="image-upload"
+                        multiple
+                        accept="image/*"
+                        onChange={(e) => e.target.files && handleImageUpload(e.target.files)}
+                        className="hidden"
+                        disabled={uploadingImages}
+                      />
+                      <label
+                        htmlFor="image-upload"
+                        className="flex flex-col items-center justify-center cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Upload className="w-8 h-8 mb-2" />
+                        <span className="text-sm font-medium">
+                          {uploadingImages ? 'Uploading...' : 'Upload Photos'}
+                        </span>
+                        <span className="text-xs mt-1">
+                          Add up to {3 - formData.images.length} more photos (max 5MB each)
+                        </span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
               
               <div className="flex space-x-2">
                 <Button type="submit" disabled={submitting}>
@@ -352,6 +491,41 @@ export default function ProductReviews({ productId, currentUserId, onReviewAdded
                 {review.comment && (
                   <p className="text-muted-foreground mb-3">{review.comment}</p>
                 )}
+
+                {/* Review Images */}
+                {(() => {
+                  const reviewImages = parseReviewImages(review.images);
+                  return reviewImages.length > 0 && (
+                    <div className="mb-4">
+                      <div className="grid grid-cols-3 gap-2 max-w-md">
+                        {reviewImages.map((image, index) => (
+                          <div key={index} className="group cursor-pointer">
+                            <img
+                              src={image}
+                              alt={`Review image ${index + 1}`}
+                              className="w-full h-20 object-cover rounded-lg border hover:shadow-md transition-shadow"
+                              onClick={() => {
+                                // Create modal overlay for full-size image view
+                                const modal = document.createElement('div');
+                                modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 cursor-pointer';
+                                modal.innerHTML = `
+                                  <img src="${image}" alt="Review image ${index + 1}" class="max-w-full max-h-full object-contain" />
+                                  <button class="absolute top-4 right-4 text-white text-2xl font-bold hover:text-gray-300">&times;</button>
+                                `;
+                                modal.onclick = () => document.body.removeChild(modal);
+                                document.body.appendChild(modal);
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2 flex items-center">
+                        <ImageIcon className="w-3 h-3 mr-1" />
+                        {reviewImages.length} photo{reviewImages.length !== 1 ? 's' : ''} from customer
+                      </p>
+                    </div>
+                  );
+                })()}
                 
                 <div className="flex items-center justify-between">
                   <Button

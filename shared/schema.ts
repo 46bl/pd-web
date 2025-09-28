@@ -103,6 +103,7 @@ export const productReviews = pgTable("product_reviews", {
   rating: integer("rating").notNull(), // 1-5 stars
   title: text("title"),
   comment: text("comment"),
+  images: text("images"), // JSON array of image URLs/base64 data
   isVerifiedPurchase: boolean("is_verified_purchase").notNull().default(false),
   helpfulCount: integer("helpful_count").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
