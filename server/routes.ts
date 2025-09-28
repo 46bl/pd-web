@@ -155,6 +155,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin authentication middleware
+  const requireAdminAuth = (req: any, res: any, next: any) => {
+    if (req.session && req.session.isAdmin) {
+      return next();
+    }
+    return res.status(401).json({ message: 'Unauthorized' });
+  };
+
+  // Admin login
+  app.post("/api/admin/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      // Simple authentication with provided credentials
+      if (username === 'pdcheats' && password === 'Astras08!') {
+        req.session.isAdmin = true;
+        res.json({ success: true, message: 'Login successful' });
+      } else {
+        res.status(401).json({ message: 'Invalid credentials' });
+      }
+    } catch (error) {
+      res.status(500).json({ message: 'Login failed' });
+    }
+  });
+
+  // Admin auth check
+  app.get("/api/admin/check", requireAdminAuth, (req, res) => {
+    res.json({ authenticated: true });
+  });
+
+  // Admin logout
+  app.post("/api/admin/logout", (req, res) => {
+    req.session.destroy(() => {
+      res.json({ success: true });
+    });
+  });
+
+  // Get all orders (admin only)
+  app.get("/api/admin/orders", requireAdminAuth, async (req, res) => {
+    try {
+      const orders = await storage.getOrders();
+      res.json(orders);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch orders' });
+    }
+  });
+
+  // Update order status (admin only)
+  app.patch("/api/admin/orders/:id/status", requireAdminAuth, async (req, res) => {
+    try {
+      const { status } = req.body;
+      const order = await storage.updateOrderStatus(req.params.id, status);
+      if (!order) {
+        return res.status(404).json({ message: 'Order not found' });
+      }
+      res.json(order);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to update order status' });
+    }
+  });
+
+  // Create order (from checkout)
+  app.post("/api/orders", async (req, res) => {
+    try {
+      const order = await storage.createOrder(req.body);
+      res.status(201).json(order);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to create order' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

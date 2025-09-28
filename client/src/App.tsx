@@ -8,6 +8,8 @@ import Products from "@/pages/products";
 import Support from "@/pages/support";
 import About from "@/pages/about";
 import Checkout from "@/pages/checkout";
+import AdminLogin from "@/pages/admin-login";
+import Admin from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -18,6 +20,8 @@ function Router() {
       <Route path="/support" component={Support} />
       <Route path="/about" component={About} />
       <Route path="/checkout/:productData" component={Checkout} />
+      <Route path="/admin-login" component={AdminLogin} />
+      <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>
   );
