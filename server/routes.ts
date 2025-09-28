@@ -66,6 +66,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Enhanced product search with advanced filters
+  app.post("/api/products/search/advanced", async (req, res) => {
+    try {
+      const { query = '', filters = {} } = req.body;
+      const products = await storage.getAdvancedProductSearch(query, filters);
+      res.json(products);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to perform advanced search" });
+    }
+  });
+
+  // Get product recommendations
+  app.get("/api/products/recommendations", async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const productId = req.query.productId as string;
+      const limit = parseInt(req.query.limit as string) || 5;
+      
+      const recommendations = await storage.getProductRecommendations(userId, productId, limit);
+      res.json(recommendations);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch recommendations" });
+    }
+  });
+
+  // Recently viewed products
+  app.post("/api/recently-viewed/:productId", requireUserAuth, async (req, res) => {
+    try {
+      const userId = (req as any).user.id;
+      const productId = req.params.productId;
+      
+      await storage.addRecentlyViewed(userId, productId);
+      
+      // Log user activity
+      await storage.logUserActivity({
+        userId,
+        action: 'view_product',
+        entityType: 'product',
+        entityId: productId,
+        metadata: JSON.stringify({ timestamp: new Date().toISOString() })
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to track product view" });
+    }
+  });
+
+  app.get("/api/recently-viewed", requireUserAuth, async (req, res) => {
+    try {
+      const userId = (req as any).user.id;
+      const products = await storage.getRecentlyViewed(userId);
+      res.json(products);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch recently viewed products" });
+    }
+  });
+
+  // FAQ endpoints
+  app.get("/api/faq", async (req, res) => {
+    try {
+      const category = req.query.category as string;
+      const faqItems = await storage.getFaqItems(category);
+      res.json(faqItems);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch FAQ items" });
+    }
+  });
+
+  // User activity tracking
+  app.get("/api/user/activity", requireUserAuth, async (req, res) => {
+    try {
+      const userId = (req as any).user.id;
+      const activities = await storage.getUserActivity(userId);
+      res.json(activities);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user activity" });
+    }
+  });
+
   // Product Reviews API
   // Get reviews for a product
   app.get("/api/products/:productId/reviews", async (req, res) => {
