@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function Products() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("name");
-  const [viewMode, setViewMode] = useState<"groups" | "individual">("groups");
+  const [viewMode, setViewMode] = useState<"groups" | "individual">("individual");
   const [filters, setFilters] = useState<FilterState>({
     categories: [],
     games: [],
@@ -221,29 +221,56 @@ export default function Products() {
                   </div>
                 ))}
               </div>
-            ) : filteredAndSortedGroups.length === 0 ? (
-              <div className="text-center py-12">
-                <h2 className="text-2xl font-bold text-muted-foreground mb-4">No Products Found</h2>
-                <p className="text-muted-foreground">
-                  {searchQuery || filters.categories.length > 0 || filters.games.length > 0
-                    ? "Try adjusting your search or filters"
-                    : "No products available at the moment"}
-                </p>
-              </div>
+            ) : viewMode === "individual" ? (
+              filteredAndSortedProducts.length === 0 ? (
+                <div className="text-center py-12">
+                  <h2 className="text-2xl font-bold text-muted-foreground mb-4">No Products Found</h2>
+                  <p className="text-muted-foreground">
+                    {searchQuery || filters.categories.length > 0 || filters.games.length > 0
+                      ? "Try adjusting your search or filters"
+                      : "No products available at the moment"}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="product-grid" data-testid="grid-products">
+                    {filteredAndSortedProducts.map((product) => (
+                      <ProductCard key={product.id} product={product} />
+                    ))}
+                  </div>
+                  
+                  <div className="text-center mt-12">
+                    <span className="text-muted-foreground" data-testid="text-results-count">
+                      Showing {filteredAndSortedProducts.length} product{filteredAndSortedProducts.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </>
+              )
             ) : (
-              <>
-                <div className="product-grid" data-testid="grid-products">
-                  {filteredAndSortedGroups.map((group) => (
-                    <ProductGroupCard key={group.id} group={group} />
-                  ))}
+              filteredAndSortedGroups.length === 0 ? (
+                <div className="text-center py-12">
+                  <h2 className="text-2xl font-bold text-muted-foreground mb-4">No Product Groups Found</h2>
+                  <p className="text-muted-foreground">
+                    {searchQuery || filters.categories.length > 0 || filters.games.length > 0
+                      ? "Try adjusting your search or filters"
+                      : "No product groups available at the moment"}
+                  </p>
                 </div>
-                
-                <div className="text-center mt-12">
-                  <span className="text-muted-foreground" data-testid="text-results-count">
-                    Showing {filteredAndSortedGroups.length} product group{filteredAndSortedGroups.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
-              </>
+              ) : (
+                <>
+                  <div className="product-grid" data-testid="grid-products">
+                    {filteredAndSortedGroups.map((group) => (
+                      <ProductGroupCard key={group.id} group={group} />
+                    ))}
+                  </div>
+                  
+                  <div className="text-center mt-12">
+                    <span className="text-muted-foreground" data-testid="text-results-count">
+                      Showing {filteredAndSortedGroups.length} product group{filteredAndSortedGroups.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </>
+              )
             )}
         </main>
       </div>
