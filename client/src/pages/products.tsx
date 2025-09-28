@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function Products() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("name");
-  const [viewMode, setViewMode] = useState<"groups" | "individual">("individual");
+  const [viewMode, setViewMode] = useState<"groups" | "individual">("groups");
   const [filters, setFilters] = useState<FilterState>({
     categories: [],
     games: [],
