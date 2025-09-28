@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Shield, LogOut, Package, CheckCircle, Clock, AlertTriangle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Shield, LogOut, Package, CheckCircle, Clock, AlertTriangle, Key } from "lucide-react";
 
 interface Order {
   id: string;
@@ -16,6 +19,8 @@ interface Order {
   status: 'pending' | 'confirmed' | 'completed';
   createdAt: string;
   transactionId?: string;
+  licenseKey?: string;
+  downloadUrl?: string;
 }
 
 export default function AdminPanel() {
@@ -23,6 +28,9 @@ export default function AdminPanel() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [completingOrder, setCompletingOrder] = useState<Order | null>(null);
+  const [licenseKey, setLicenseKey] = useState("");
+  const [downloadUrl, setDownloadUrl] = useState("");
 
   useEffect(() => {
     checkAuth();
@@ -79,6 +87,64 @@ export default function AdminPanel() {
         ));
       } else {
         setError('Failed to update order status');
+      }
+    } catch (err) {
+      setError('Connection failed');
+    }
+  };
+
+  const handleCompleteOrder = (order: Order) => {
+    setCompletingOrder(order);
+    setLicenseKey("");
+    setDownloadUrl("");
+  };
+
+  const completeOrderWithLicense = async () => {
+    if (!completingOrder || !licenseKey.trim()) {
+      setError('License key is required');
+      return;
+    }
+
+    try {
+      // Update license key first
+      const licenseResponse = await fetch(`/api/admin/orders/${completingOrder.id}/license`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          licenseKey: licenseKey.trim(), 
+          downloadUrl: downloadUrl.trim() || undefined 
+        }),
+      });
+
+      if (!licenseResponse.ok) {
+        setError('Failed to update license key');
+        return;
+      }
+
+      // Then update status to completed
+      const statusResponse = await fetch(`/api/admin/orders/${completingOrder.id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'completed' }),
+      });
+
+      if (statusResponse.ok) {
+        setOrders(orders.map(order => 
+          order.id === completingOrder.id 
+            ? { ...order, status: 'completed', licenseKey: licenseKey.trim(), downloadUrl: downloadUrl.trim() || undefined } 
+            : order
+        ));
+        setCompletingOrder(null);
+        setLicenseKey("");
+        setDownloadUrl("");
+      } else {
+        setError('Failed to complete order');
       }
     } catch (err) {
       setError('Connection failed');
@@ -265,13 +331,61 @@ export default function AdminPanel() {
                             </Button>
                           )}
                           {order.status === 'confirmed' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => updateOrderStatus(order.id, 'completed')}
-                            >
-                              Mark Complete
-                            </Button>
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCompleteOrder(order)}
+                                >
+                                  <Key className="w-4 h-4 mr-1" />
+                                  Complete Order
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Complete Order</DialogTitle>
+                                  <DialogDescription>
+                                    Assign a license key and download URL for: <strong>{order.productName}</strong>
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4">
+                                  <div>
+                                    <Label htmlFor="licenseKey">License Key *</Label>
+                                    <Input
+                                      id="licenseKey"
+                                      value={licenseKey}
+                                      onChange={(e) => setLicenseKey(e.target.value)}
+                                      placeholder="e.g. RUST-MEK-1D-ABC123DEF456"
+                                      required
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor="downloadUrl">Download URL (Optional)</Label>
+                                    <Input
+                                      id="downloadUrl"
+                                      value={downloadUrl}
+                                      onChange={(e) => setDownloadUrl(e.target.value)}
+                                      placeholder="https://secure.pdcheats.uk/downloads/..."
+                                    />
+                                  </div>
+                                  <div className="flex justify-end space-x-2">
+                                    <Button variant="outline" onClick={() => setCompletingOrder(null)}>
+                                      Cancel
+                                    </Button>
+                                    <Button onClick={completeOrderWithLicense}>
+                                      Complete Order
+                                    </Button>
+                                  </div>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          )}
+                          {order.status === 'completed' && order.licenseKey && (
+                            <div className="text-xs text-green-600">
+                              <Key className="w-3 h-3 inline mr-1" />
+                              License Assigned
+                            </div>
                           )}
                         </div>
                       </div>
