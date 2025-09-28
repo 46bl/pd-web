@@ -228,9 +228,33 @@ export default function CheckoutPage() {
                     <Button
                       className="flex-1"
                       size="lg"
-                      onClick={() => {
-                        // Here you could integrate with a payment confirmation system
-                        alert(`Payment instructions sent! Send ${product.price} USD worth of ${cryptoWallets[selectedPayment].name} to the provided address.`);
+                      onClick={async () => {
+                        try {
+                          const orderData = {
+                            productName: product.name,
+                            productPrice: product.price,
+                            paymentMethod: cryptoWallets[selectedPayment].name,
+                            walletAddress: cryptoWallets[selectedPayment].address
+                          };
+
+                          const response = await fetch('/api/orders', {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(orderData),
+                          });
+
+                          if (response.ok) {
+                            const order = await response.json();
+                            alert(`Order submitted successfully! Order ID: ${order.id}. We will verify your payment and process your order within 1-24 hours.`);
+                            setLocation('/products');
+                          } else {
+                            alert('Failed to submit order. Please try again.');
+                          }
+                        } catch (error) {
+                          alert('Connection error. Please try again.');
+                        }
                       }}
                     >
                       I've Sent Payment
