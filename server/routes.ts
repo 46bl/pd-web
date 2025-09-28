@@ -2,17 +2,26 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertSupportTicketSchema } from "@shared/schema";
+import { setupAuth } from "./auth";
 
-// Extend session to include admin and customer authentication
+// Extend session to include admin authentication
 declare module 'express-session' {
   interface SessionData {
     isAdmin?: boolean;
-    customerOrderId?: string;
-    customerEmail?: string;
   }
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup authentication first
+  setupAuth(app);
+
+  // User authentication middleware
+  const requireUserAuth = (req: any, res: any, next: any) => {
+    if (req.isAuthenticated && req.isAuthenticated()) {
+      return next();
+    }
+    return res.status(401).json({ message: 'Unauthorized' });
+  };
   // Get all products
   app.get("/api/products", async (_req, res) => {
     try {
@@ -239,80 +248,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create order (from checkout)
-  app.post("/api/orders", async (req, res) => {
+  // Create order (from checkout) - requires authentication
+  app.post("/api/orders", requireUserAuth, async (req, res) => {
     try {
-      const order = await storage.createOrder(req.body);
+      const orderData = {
+        ...req.body,
+        userId: req.user!.id
+      };
+      const order = await storage.createOrder(orderData);
       res.status(201).json(order);
     } catch (error) {
       res.status(500).json({ message: 'Failed to create order' });
     }
   });
 
-  // Customer authentication middleware
-  const requireCustomerAuth = (req: any, res: any, next: any) => {
-    if (req.session?.customerOrderId && req.session?.customerEmail) {
-      return next();
-    }
-    return res.status(401).json({ message: 'Unauthorized' });
-  };
-
-  // Customer login (by order ID and email)
-  app.post("/api/customer/login", async (req, res) => {
-    try {
-      const { orderId, email } = req.body;
-      
-      if (!orderId || !email) {
-        return res.status(400).json({ message: 'Order ID and email are required' });
-      }
-
-      const order = await storage.getCustomerOrder(orderId, email);
-      if (!order) {
-        return res.status(401).json({ message: 'Invalid order ID or email' });
-      }
-
-      // Store customer session data
-      req.session!.customerOrderId = orderId;
-      req.session!.customerEmail = email;
-      
-      res.json({ success: true, message: 'Login successful' });
-    } catch (error) {
-      res.status(500).json({ message: 'Login failed' });
-    }
-  });
-
-  // Customer auth check
-  app.get("/api/customer/check", requireCustomerAuth, (req, res) => {
-    res.json({ authenticated: true });
-  });
-
-  // Customer logout
-  app.post("/api/customer/logout", (req, res) => {
-    req.session.destroy(() => {
-      res.json({ success: true });
-    });
-  });
-
-  // Get customer orders
-  app.get("/api/customer/orders", requireCustomerAuth, async (req, res) => {
+  // Get user orders (authenticated)
+  app.get("/api/orders", requireUserAuth, async (req, res) => {
     try {
       const { orderId } = req.query;
-      const customerEmail = req.session!.customerEmail!;
+      const userId = req.user!.id;
       
       if (orderId) {
         // Get specific order
-        const order = await storage.getCustomerOrder(orderId as string, customerEmail);
+        const order = await storage.getUserOrder(orderId as string, userId);
         if (!order) {
           return res.status(404).json({ message: 'Order not found' });
         }
         res.json(order);
       } else {
-        // Get all orders for this customer email
-        const allOrders = await storage.getOrders();
-        const customerOrders = allOrders.filter(
-          order => order.customerEmail?.toLowerCase() === customerEmail.toLowerCase()
-        );
-        res.json(customerOrders);
+        // Get all orders for this user
+        const userOrders = await storage.getUserOrders(userId);
+        res.json(userOrders);
       }
     } catch (error) {
       res.status(500).json({ message: 'Failed to fetch orders' });

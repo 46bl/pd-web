@@ -13,6 +13,7 @@ export interface Order {
   id: string;
   productName: string;
   productPrice: string;
+  userId: string;
   customerEmail?: string;
   paymentMethod: string;
   walletAddress: string;
@@ -26,6 +27,7 @@ export interface Order {
 export interface CreateOrderData {
   productName: string;
   productPrice: string;
+  userId: string;
   customerEmail?: string;
   paymentMethod: string;
   walletAddress: string;
@@ -54,7 +56,8 @@ export interface IStorage {
   createOrder(orderData: CreateOrderData): Promise<Order>;
   updateOrderStatus(id: string, status: 'pending' | 'confirmed' | 'completed'): Promise<Order | undefined>;
   updateOrderLicenseKey(id: string, licenseKey: string, downloadUrl?: string): Promise<Order | undefined>;
-  getCustomerOrder(orderId: string, email: string): Promise<Order | undefined>;
+  getUserOrders(userId: string): Promise<Order[]>;
+  getUserOrder(orderId: string, userId: string): Promise<Order | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -867,6 +870,7 @@ export class MemStorage implements IStorage {
       id: randomUUID(),
       productName: orderData.productName,
       productPrice: orderData.productPrice,
+      userId: orderData.userId,
       customerEmail: orderData.customerEmail,
       paymentMethod: orderData.paymentMethod,
       walletAddress: orderData.walletAddress,
@@ -898,15 +902,17 @@ export class MemStorage implements IStorage {
     return updatedOrder;
   }
 
-  async getCustomerOrder(orderId: string, email: string): Promise<Order | undefined> {
+  async getUserOrders(userId: string): Promise<Order[]> {
+    return Array.from(this.orders.values())
+      .filter(order => order.userId === userId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async getUserOrder(orderId: string, userId: string): Promise<Order | undefined> {
     const order = this.orders.get(orderId);
-    if (!order || !order.customerEmail) return undefined;
-    
-    // Case-insensitive email comparison
-    if (order.customerEmail.toLowerCase() !== email.toLowerCase()) {
+    if (!order || order.userId !== userId) {
       return undefined;
     }
-    
     return order;
   }
 }
