@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useLocation, useRoute } from "wouter";
 import { Product } from "@shared/schema";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Copy, CheckCircle, Mail } from "lucide-react";
+import { ArrowLeft, Copy, CheckCircle, Mail, User } from "lucide-react";
 
 type PaymentMethod = 'bitcoin' | 'ethereum' | 'litecoin';
 
@@ -41,10 +42,10 @@ const cryptoWallets: Record<PaymentMethod, CryptoWallet> = {
 export default function CheckoutPage() {
   const [, setLocation] = useLocation();
   const [match, params] = useRoute("/checkout/:productData");
+  const { user } = useAuth();
   const [product, setProduct] = useState<Product | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod | null>(null);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
-  const [customerEmail, setCustomerEmail] = useState("");
 
   useEffect(() => {
     if (params?.productData) {
@@ -141,20 +142,17 @@ export default function CheckoutPage() {
               <CardContent className="space-y-6">
                 {/* Customer Email */}
                 <div className="space-y-4">
-                  <h3 className="font-semibold text-lg">Contact Information</h3>
+                  <h3 className="font-semibold text-lg">Account Information</h3>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email Address *</Label>
+                    <Label>Logged in as</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="your@email.com"
-                        value={customerEmail}
-                        onChange={(e) => setCustomerEmail(e.target.value)}
-                        className="pl-10"
-                        required
-                      />
+                      <User className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                      <div className="pl-10 p-3 bg-background rounded border text-sm">
+                        <p className="font-medium">{user?.username}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Orders will be accessible in your dashboard
+                        </p>
+                      </div>
                     </div>
                     <p className="text-sm text-muted-foreground">
                       Required to access your purchase and receive your license key
@@ -250,13 +248,13 @@ export default function CheckoutPage() {
                   >
                     Back to Products
                   </Button>
-                  {selectedPayment && customerEmail.trim() && (
+                  {selectedPayment && user && (
                     <Button
                       className="flex-1"
                       size="lg"
                       onClick={async () => {
-                        if (!customerEmail.trim()) {
-                          alert('Please enter your email address');
+                        if (!user) {
+                          alert('Please log in to complete your purchase');
                           return;
                         }
                         
@@ -264,7 +262,8 @@ export default function CheckoutPage() {
                           const orderData = {
                             productName: product.name,
                             productPrice: product.price,
-                            customerEmail: customerEmail.trim(),
+                            userId: user.id,
+                            customerEmail: `${user.username}@playdirty.com`,
                             paymentMethod: cryptoWallets[selectedPayment].name,
                             walletAddress: cryptoWallets[selectedPayment].address
                           };
@@ -274,13 +273,14 @@ export default function CheckoutPage() {
                             headers: {
                               'Content-Type': 'application/json',
                             },
+                            credentials: 'include',
                             body: JSON.stringify(orderData),
                           });
 
                           if (response.ok) {
                             const order = await response.json();
-                            alert(`Order submitted successfully!\n\nOrder ID: ${order.id}\nEmail: ${customerEmail}\n\nSave this information to access your order later at /customer-login\n\nWe will verify your payment and process your order within 1-24 hours.`);
-                            setLocation('/products');
+                            alert(`Order submitted successfully!\n\nOrder ID: ${order.id}\nAccount: ${user.username}\n\nYour order is now accessible in your dashboard.\n\nWe will verify your payment and process your order within 1-24 hours.`);
+                            setLocation('/dashboard');
                           } else {
                             alert('Failed to submit order. Please try again.');
                           }

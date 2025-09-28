@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Search, Menu, Gamepad2 } from "lucide-react";
+import { Search, Menu, User, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useAuth } from "@/hooks/use-auth";
 const logoImage = "https://i.postimg.cc/0j1BFrgF/Untitled-3.png";
 
 interface HeaderProps {
@@ -12,6 +13,12 @@ interface HeaderProps {
 
 export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, logoutMutation } = useAuth();
+
+  const handleLogout = () => {
+    logoutMutation.mutate();
+    setIsMobileMenuOpen(false);
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-card border-b border-border backdrop-blur-sm">
@@ -54,9 +61,30 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
             <a href="/about" className="text-foreground hover:text-primary transition-colors" data-testid="link-about">
               About
             </a>
-            <a href="/customer-login" className="text-foreground hover:text-primary transition-colors border border-primary/20 px-3 py-1 rounded" data-testid="link-customer">
-              My Orders
-            </a>
+            
+            {/* Authentication Links */}
+            {user ? (
+              <div className="flex items-center space-x-4">
+                <a href="/dashboard" className="text-foreground hover:text-primary transition-colors border border-primary/20 px-3 py-1 rounded flex items-center" data-testid="link-dashboard">
+                  <User className="w-4 h-4 mr-1" />
+                  {user.username}
+                </a>
+                <Button
+                  onClick={handleLogout}
+                  variant="ghost"
+                  size="sm"
+                  className="text-foreground hover:text-primary"
+                  disabled={logoutMutation.isPending}
+                  data-testid="button-logout"
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              </div>
+            ) : (
+              <a href="/auth" className="text-foreground hover:text-primary transition-colors border border-primary/20 px-3 py-1 rounded" data-testid="link-auth">
+                Sign In
+              </a>
+            )}
           </nav>
 
           {/* Mobile Menu Button */}
@@ -68,21 +96,42 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
             </SheetTrigger>
             <SheetContent side="right" className="w-64">
               <nav className="flex flex-col space-y-4 mt-8">
-                <a href="/" className="text-foreground hover:text-primary transition-colors" data-testid="link-mobile-home">
+                <a href="/" className="text-foreground hover:text-primary transition-colors" data-testid="link-mobile-home" onClick={() => setIsMobileMenuOpen(false)}>
                   Home
                 </a>
-                <a href="/products" className="text-foreground hover:text-primary transition-colors" data-testid="link-mobile-products">
+                <a href="/products" className="text-foreground hover:text-primary transition-colors" data-testid="link-mobile-products" onClick={() => setIsMobileMenuOpen(false)}>
                   Products
                 </a>
-                <a href="/support" className="text-foreground hover:text-primary transition-colors" data-testid="link-mobile-support">
+                <a href="/support" className="text-foreground hover:text-primary transition-colors" data-testid="link-mobile-support" onClick={() => setIsMobileMenuOpen(false)}>
                   Support
                 </a>
-                <a href="/about" className="text-foreground hover:text-primary transition-colors" data-testid="link-mobile-about">
+                <a href="/about" className="text-foreground hover:text-primary transition-colors" data-testid="link-mobile-about" onClick={() => setIsMobileMenuOpen(false)}>
                   About
                 </a>
-                <a href="/customer-login" className="text-foreground hover:text-primary transition-colors border border-primary/20 px-3 py-1 rounded" data-testid="link-mobile-customer">
-                  My Orders
-                </a>
+                
+                {/* Mobile Authentication Links */}
+                {user ? (
+                  <>
+                    <a href="/dashboard" className="text-foreground hover:text-primary transition-colors border border-primary/20 px-3 py-1 rounded flex items-center" data-testid="link-mobile-dashboard" onClick={() => setIsMobileMenuOpen(false)}>
+                      <User className="w-4 h-4 mr-2" />
+                      {user.username}
+                    </a>
+                    <Button
+                      onClick={handleLogout}
+                      variant="ghost"
+                      className="text-foreground hover:text-primary justify-start px-0"
+                      disabled={logoutMutation.isPending}
+                      data-testid="button-mobile-logout"
+                    >
+                      <LogOut className="w-4 h-4 mr-2" />
+                      {logoutMutation.isPending ? "Logging out..." : "Logout"}
+                    </Button>
+                  </>
+                ) : (
+                  <a href="/auth" className="text-foreground hover:text-primary transition-colors border border-primary/20 px-3 py-1 rounded" data-testid="link-mobile-auth" onClick={() => setIsMobileMenuOpen(false)}>
+                    Sign In
+                  </a>
+                )}
               </nav>
             </SheetContent>
           </Sheet>
