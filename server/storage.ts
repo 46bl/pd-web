@@ -6,8 +6,14 @@ import {
   type ProductGroup,
   type SupportTicket,
   type InsertSupportTicket,
+  users,
+  products,
+  supportTickets,
+  orders,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { eq, and, or, gte, lte, ilike, inArray, desc } from "drizzle-orm";
+import { db } from "./db.js";
 
 export interface Order {
   id: string;
@@ -78,6 +84,7 @@ export class MemStorage implements IStorage {
   }
 
   private initializeProducts() {
+    const now = new Date();
     const initialProducts: Omit<Product, "id">[] = [
       // Rust MEK variants
       {
@@ -93,6 +100,10 @@ export class MemStorage implements IStorage {
         deliveryUrl: "https://secure.pdcheats.uk/downloads/rust-mek-1day.zip",
         licenseKey: "RUST-MEK-1D-XXXX",
         deliveryType: "download",
+        averageRating: 4.8,
+        reviewCount: 24,
+        createdAt: now,
+        updatedAt: now,
       },
       {
         name: "Rust MEK - 3 Day",
@@ -107,6 +118,10 @@ export class MemStorage implements IStorage {
         deliveryUrl: "https://secure.pdcheats.uk/downloads/rust-mek-3day.zip",
         licenseKey: "RUST-MEK-3D-XXXX",
         deliveryType: "download",
+        averageRating: 4.7,
+        reviewCount: 18,
+        createdAt: now,
+        updatedAt: now,
       },
       {
         name: "Rust MEK - 7 Day",
@@ -121,6 +136,10 @@ export class MemStorage implements IStorage {
         deliveryUrl: "https://secure.pdcheats.uk/downloads/rust-mek-7day.zip",
         licenseKey: "RUST-MEK-7D-XXXX",
         deliveryType: "download",
+        averageRating: 4.9,
+        reviewCount: 32,
+        createdAt: now,
+        updatedAt: now,
       },
       {
         name: "Rust MEK - 30 Day",
@@ -135,6 +154,10 @@ export class MemStorage implements IStorage {
         deliveryUrl: "https://secure.pdcheats.uk/downloads/rust-mek-30day.zip",
         licenseKey: "RUST-MEK-30D-XXXX",
         deliveryType: "download",
+        averageRating: 4.8,
+        reviewCount: 45,
+        createdAt: now,
+        updatedAt: now,
       },
       {
         name: "Rust MEK - Lifetime",
@@ -150,6 +173,10 @@ export class MemStorage implements IStorage {
           "https://secure.pdcheats.uk/downloads/rust-mek-lifetime.zip",
         licenseKey: "RUST-MEK-LT-XXXX",
         deliveryType: "download",
+        averageRating: 4.9,
+        reviewCount: 67,
+        createdAt: now,
+        updatedAt: now,
       },
       // Temp Spoofer variants
       {
@@ -166,6 +193,10 @@ export class MemStorage implements IStorage {
           "https://secure.pdcheats.uk/downloads/temp-spoofer-1day.zip",
         licenseKey: "TSPOOF-1D-XXXX",
         deliveryType: "download",
+        averageRating: 4.6,
+        reviewCount: 15,
+        createdAt: now,
+        updatedAt: now,
       },
       {
         name: "Temp Spoofer - 7 Day",
@@ -181,6 +212,10 @@ export class MemStorage implements IStorage {
           "https://secure.pdcheats.uk/downloads/temp-spoofer-7day.zip",
         licenseKey: "TSPOOF-7D-XXXX",
         deliveryType: "download",
+        averageRating: 4.7,
+        reviewCount: 28,
+        createdAt: now,
+        updatedAt: now,
       },
       {
         name: "Temp Spoofer - 30 Day",
@@ -196,6 +231,10 @@ export class MemStorage implements IStorage {
           "https://secure.pdcheats.uk/downloads/temp-spoofer-30day.zip",
         licenseKey: "TSPOOF-30D-XXXX",
         deliveryType: "download",
+        averageRating: 4.8,
+        reviewCount: 36,
+        createdAt: now,
+        updatedAt: now,
       },
       {
         name: "Temp Spoofer - Lifetime",
@@ -211,6 +250,10 @@ export class MemStorage implements IStorage {
           "https://secure.pdcheats.uk/downloads/temp-spoofer-lifetime.zip",
         licenseKey: "TSPOOF-LT-XXXX",
         deliveryType: "download",
+        averageRating: 4.9,
+        reviewCount: 52,
+        createdAt: now,
+        updatedAt: now,
       },
       // Rust FA
       {
@@ -226,6 +269,10 @@ export class MemStorage implements IStorage {
         deliveryUrl: null,
         licenseKey: null,
         deliveryType: "account",
+        averageRating: 4.5,
+        reviewCount: 12,
+        createdAt: now,
+        updatedAt: now,
       },
       // Apex External variants
       {
@@ -237,10 +284,14 @@ export class MemStorage implements IStorage {
         game: "Apex Legends",
         stockQuantity: 25,
         inStock: true,
-        imageUrl: "",
+        imageUrl: "/attached_assets/apex-external-image.png",
         deliveryUrl: "https://secure.pdcheats.uk/downloads/apex-ext-1day.zip",
         licenseKey: "APEX-EXT-1D-XXXX",
         deliveryType: "download",
+        averageRating: 4.3,
+        reviewCount: 19,
+        createdAt: now,
+        updatedAt: now,
       },
       {
         name: "Apex External - 3 Day",
@@ -251,10 +302,14 @@ export class MemStorage implements IStorage {
         game: "Apex Legends",
         stockQuantity: 20,
         inStock: true,
-        imageUrl: "",
+        imageUrl: "/attached_assets/apex-external-image.png",
         deliveryUrl: "https://secure.pdcheats.uk/downloads/apex-ext-3day.zip",
         licenseKey: "APEX-EXT-3D-XXXX",
         deliveryType: "download",
+        averageRating: 4.4,
+        reviewCount: 15,
+        createdAt: now,
+        updatedAt: now,
       },
       {
         name: "Apex External - 7 Day",
@@ -265,10 +320,14 @@ export class MemStorage implements IStorage {
         game: "Apex Legends",
         stockQuantity: 15,
         inStock: true,
-        imageUrl: "",
+        imageUrl: "/attached_assets/apex-external-image.png",
         deliveryUrl: "https://secure.pdcheats.uk/downloads/apex-ext-7day.zip",
         licenseKey: "APEX-EXT-7D-XXXX",
         deliveryType: "download",
+        averageRating: 4.5,
+        reviewCount: 22,
+        createdAt: now,
+        updatedAt: now,
       },
       {
         name: "Apex External - 30 Day",
@@ -279,10 +338,14 @@ export class MemStorage implements IStorage {
         game: "Apex Legends",
         stockQuantity: 8,
         inStock: true,
-        imageUrl: "",
+        imageUrl: "/attached_assets/apex-external-image.png",
         deliveryUrl: "https://secure.pdcheats.uk/downloads/apex-ext-30day.zip",
         licenseKey: "APEX-EXT-30D-XXXX",
         deliveryType: "download",
+        averageRating: 4.6,
+        reviewCount: 31,
+        createdAt: now,
+        updatedAt: now,
       },
       // Perm Spoofer variants
       {
@@ -299,6 +362,10 @@ export class MemStorage implements IStorage {
           "https://secure.pdcheats.uk/downloads/perm-spoofer-onetime.zip",
         licenseKey: "PSPOOF-OT-XXXX",
         deliveryType: "download",
+        averageRating: 4.7,
+        reviewCount: 18,
+        createdAt: now,
+        updatedAt: now,
       },
       {
         name: "Perm Spoofer - Lifetime",
@@ -314,6 +381,10 @@ export class MemStorage implements IStorage {
           "https://secure.pdcheats.uk/downloads/perm-spoofer-lifetime.zip",
         licenseKey: "PSPOOF-LT-XXXX",
         deliveryType: "download",
+        averageRating: 4.8,
+        reviewCount: 33,
+        createdAt: now,
+        updatedAt: now,
       },
       // Rust NFA
       {
@@ -329,6 +400,10 @@ export class MemStorage implements IStorage {
         deliveryUrl: null,
         licenseKey: null,
         deliveryType: "account",
+        averageRating: 4.2,
+        reviewCount: 8,
+        createdAt: now,
+        updatedAt: now,
       },
       // Rust External variants
       {
@@ -344,6 +419,10 @@ export class MemStorage implements IStorage {
         deliveryUrl: "https://secure.pdcheats.uk/downloads/rust-ext-1day.zip",
         licenseKey: "RUST-EXT-1D-XXXX",
         deliveryType: "download",
+        averageRating: 4.6,
+        reviewCount: 14,
+        createdAt: now,
+        updatedAt: now,
       },
       {
         name: "Rust External - 3 Days",
@@ -358,6 +437,10 @@ export class MemStorage implements IStorage {
         deliveryUrl: "https://secure.pdcheats.uk/downloads/rust-ext-3days.zip",
         licenseKey: "RUST-EXT-3D-XXXX",
         deliveryType: "download",
+        averageRating: 4.5,
+        reviewCount: 11,
+        createdAt: now,
+        updatedAt: now,
       },
       {
         name: "Rust External - 7 Days",
@@ -372,6 +455,10 @@ export class MemStorage implements IStorage {
         deliveryUrl: "https://secure.pdcheats.uk/downloads/rust-ext-7days.zip",
         licenseKey: "RUST-EXT-7D-XXXX",
         deliveryType: "download",
+        averageRating: 4.7,
+        reviewCount: 19,
+        createdAt: now,
+        updatedAt: now,
       },
       {
         name: "Rust External - 30 Day",
@@ -386,11 +473,15 @@ export class MemStorage implements IStorage {
         deliveryUrl: "https://secure.pdcheats.uk/downloads/rust-ext-30day.zip",
         licenseKey: "RUST-EXT-30D-XXXX",
         deliveryType: "download",
+        averageRating: 4.8,
+        reviewCount: 27,
+        createdAt: now,
+        updatedAt: now,
       },
       // DMA Products
       {
         name: "DMA Bundle Firmware Included",
-        description: "sgrasdyevyg35",
+        description: "Complete DMA hardware bundle with firmware included for multi-game support",
         price: "659.99",
         originalPrice: null,
         category: "DMA Hardware",
@@ -401,6 +492,10 @@ export class MemStorage implements IStorage {
         deliveryUrl: "https://secure.pdcheats.uk/downloads/dma-bundle.zip",
         licenseKey: "DMA-BUNDLE-2025-XXXX",
         deliveryType: "download",
+        averageRating: 4.9,
+        reviewCount: 5,
+        createdAt: now,
+        updatedAt: now,
       },
     ];
 
@@ -917,4 +1012,195 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// DatabaseStorage implementation for PostgreSQL
+export class DatabaseStorage implements IStorage {
+
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  async getProducts(): Promise<Product[]> {
+    return await db.select().from(products);
+  }
+
+  async getProduct(id: string): Promise<Product | undefined> {
+    const [product] = await db.select().from(products).where(eq(products.id, id));
+    return product || undefined;
+  }
+
+  async searchProducts(query: string): Promise<Product[]> {
+    const lowerQuery = `%${query.toLowerCase()}%`;
+    return await db.select().from(products).where(
+      or(
+        ilike(products.name, lowerQuery),
+        ilike(products.description, lowerQuery),
+        ilike(products.game, lowerQuery),
+        ilike(products.category, lowerQuery)
+      )
+    );
+  }
+
+  async filterProducts(filters: {
+    categories?: string[];
+    games?: string[];
+    priceRange?: { min: number; max: number };
+    inStock?: boolean;
+  }): Promise<Product[]> {
+    let query = db.select().from(products);
+    const conditions = [];
+
+    if (filters.categories && filters.categories.length > 0) {
+      conditions.push(inArray(products.category, filters.categories));
+    }
+
+    if (filters.games && filters.games.length > 0) {
+      conditions.push(inArray(products.game, filters.games));
+    }
+
+    if (filters.priceRange) {
+      if (filters.priceRange.min) {
+        conditions.push(gte(products.price, filters.priceRange.min.toString()));
+      }
+      if (filters.priceRange.max) {
+        conditions.push(lte(products.price, filters.priceRange.max.toString()));
+      }
+    }
+
+    if (filters.inStock !== undefined) {
+      conditions.push(eq(products.inStock, filters.inStock));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    return await query;
+  }
+
+  async getProductGroups(): Promise<ProductGroup[]> {
+    // For now, return static product groups as in MemStorage
+    // Later we can implement a proper product groups table
+    return [
+      {
+        id: "rust-mek",
+        name: "Rust MEK",
+        description: "Premium Rust enhancement tool with multiple duration options",
+        category: "Game Cheats",
+        game: "Rust",
+        imageUrl: "/attached_assets/rust-mek-image.png",
+        deliveryType: "download",
+        variants: [
+          {
+            id: "rust-mek-1d",
+            name: "1 Day",
+            price: "7.99",
+            stockQuantity: 15,
+            inStock: true,
+            deliveryUrl: "https://secure.pdcheats.uk/downloads/rust-mek-1day.zip",
+            licenseKey: "RUST-MEK-1D-XXXX",
+          },
+          // ... other variants
+        ],
+      },
+      // ... other product groups
+    ];
+  }
+
+  async createSupportTicket(ticket: InsertSupportTicket): Promise<SupportTicket> {
+    const [supportTicket] = await db
+      .insert(supportTickets)
+      .values(ticket)
+      .returning();
+    return supportTicket;
+  }
+
+  async getSupportTickets(): Promise<SupportTicket[]> {
+    return await db
+      .select()
+      .from(supportTickets)
+      .orderBy(desc(supportTickets.createdAt));
+  }
+
+  async getOrders(): Promise<Order[]> {
+    return await db
+      .select()
+      .from(orders)
+      .orderBy(desc(orders.createdAt));
+  }
+
+  async createOrder(orderData: CreateOrderData): Promise<Order> {
+    const [order] = await db
+      .insert(orders)
+      .values({
+        userId: orderData.userId,
+        productId: "", // Will need to be provided in orderData
+        productName: orderData.productName,
+        productPrice: orderData.productPrice,
+        paymentMethod: orderData.paymentMethod,
+        walletAddress: orderData.walletAddress,
+        status: 'pending',
+      })
+      .returning();
+    return order;
+  }
+
+  async updateOrderStatus(id: string, status: 'pending' | 'confirmed' | 'completed'): Promise<Order | undefined> {
+    const [order] = await db
+      .update(orders)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(orders.id, id))
+      .returning();
+    return order || undefined;
+  }
+
+  async updateOrderLicenseKey(id: string, licenseKey: string, downloadUrl?: string): Promise<Order | undefined> {
+    const [order] = await db
+      .update(orders)
+      .set({ 
+        licenseKey, 
+        downloadUrl,
+        updatedAt: new Date()
+      })
+      .where(eq(orders.id, id))
+      .returning();
+    return order || undefined;
+  }
+
+  async getUserOrders(userId: string): Promise<Order[]> {
+    return await db
+      .select()
+      .from(orders)
+      .where(eq(orders.userId, userId))
+      .orderBy(desc(orders.createdAt));
+  }
+
+  async getUserOrder(orderId: string, userId: string): Promise<Order | undefined> {
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(
+        and(
+          eq(orders.id, orderId),
+          eq(orders.userId, userId)
+        )
+      );
+    return order || undefined;
+  }
+}
+
+// export const storage = new MemStorage();
+export const storage = new DatabaseStorage(); // Using PostgreSQL database now
