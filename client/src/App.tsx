@@ -14,6 +14,7 @@ import AdminLogin from "@/pages/admin-login";
 import Admin from "@/pages/admin";
 import AuthPage from "@/pages/auth-page";
 import CustomerDashboard from "@/pages/customer-dashboard";
+import UserProfile from "@/pages/user-profile";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/admin" component={Admin} />
       <Route path="/auth" component={AuthPage} />
       <ProtectedRoute path="/dashboard" component={CustomerDashboard} />
+      <ProtectedRoute path="/profile" component={UserProfile} />
       <Route component={NotFound} />
     </Switch>
   );

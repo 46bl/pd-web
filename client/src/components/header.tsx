@@ -69,6 +69,9 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
                   <User className="w-4 h-4 mr-1" />
                   {user.username}
                 </a>
+                <a href="/profile" className="text-foreground hover:text-primary transition-colors px-3 py-1 rounded flex items-center" data-testid="link-profile">
+                  Profile
+                </a>
                 <Button
                   onClick={handleLogout}
                   variant="ghost"
@@ -115,6 +118,9 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
                     <a href="/dashboard" className="text-foreground hover:text-primary transition-colors border border-primary/20 px-3 py-1 rounded flex items-center" data-testid="link-mobile-dashboard" onClick={() => setIsMobileMenuOpen(false)}>
                       <User className="w-4 h-4 mr-2" />
                       {user.username}
+                    </a>
+                    <a href="/profile" className="text-foreground hover:text-primary transition-colors px-3 py-1 rounded flex items-center" data-testid="link-mobile-profile" onClick={() => setIsMobileMenuOpen(false)}>
+                      Profile
                     </a>
                     <Button
                       onClick={handleLogout}

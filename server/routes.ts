@@ -285,6 +285,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User Profile Management Routes
+  
+  // Get current user profile
+  app.get("/api/profile", requireUserAuth, async (req, res) => {
+    try {
+      const user = req.user!;
+      // Remove password from response for security
+      const { password, ...userProfile } = user;
+      res.json(userProfile);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch profile' });
+    }
+  });
+
+  // Update user profile
+  app.patch("/api/profile", requireUserAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const updateData = req.body;
+      
+      // Don't allow updating password or id through this endpoint
+      delete updateData.password;
+      delete updateData.id;
+      
+      const updatedUser = await storage.updateUserProfile(userId, updateData);
+      if (!updatedUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Remove password from response
+      const { password, ...userProfile } = updatedUser;
+      res.json(userProfile);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to update profile' });
+    }
+  });
+
+  // Change password
+  app.patch("/api/profile/password", requireUserAuth, async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const userId = req.user!.id;
+      
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: 'Current password and new password are required' });
+      }
+      
+      const success = await storage.changeUserPassword(userId, currentPassword, newPassword);
+      if (!success) {
+        return res.status(400).json({ message: 'Current password is incorrect' });
+      }
+      
+      res.json({ message: 'Password updated successfully' });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to update password' });
+    }
+  });
+
+  // Upload avatar
+  app.post("/api/profile/avatar", requireUserAuth, async (req, res) => {
+    try {
+      const { avatar } = req.body; // Base64 encoded image or URL
+      const userId = req.user!.id;
+      
+      if (!avatar) {
+        return res.status(400).json({ message: 'Avatar data is required' });
+      }
+      
+      const updatedUser = await storage.updateUserAvatar(userId, avatar);
+      if (!updatedUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      res.json({ avatar: updatedUser.avatar });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to upload avatar' });
+    }
+  });
+
+  // Delete user account
+  app.delete("/api/profile", requireUserAuth, async (req, res) => {
+    try {
+      const { password } = req.body;
+      const userId = req.user!.id;
+      
+      if (!password) {
+        return res.status(400).json({ message: 'Password confirmation required' });
+      }
+      
+      const success = await storage.deleteUserAccount(userId, password);
+      if (!success) {
+        return res.status(400).json({ message: 'Incorrect password' });
+      }
+      
+      // Destroy session after account deletion
+      req.logout((err) => {
+        if (err) {
+          return res.status(500).json({ message: 'Failed to logout after account deletion' });
+        }
+        res.json({ message: 'Account deleted successfully' });
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to delete account' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

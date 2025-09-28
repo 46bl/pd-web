@@ -1200,6 +1200,110 @@ export class DatabaseStorage implements IStorage {
       );
     return order || undefined;
   }
+
+  // User Profile Management Methods
+  async updateUserProfile(userId: string, updateData: Partial<User>): Promise<User | undefined> {
+    try {
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          ...updateData,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId))
+        .returning();
+      return updatedUser || undefined;
+    } catch (error) {
+      console.error('Failed to update user profile:', error);
+      return undefined;
+    }
+  }
+
+  async changeUserPassword(userId: string, currentPassword: string, newPassword: string): Promise<boolean> {
+    try {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId));
+      
+      if (!user) {
+        return false;
+      }
+
+      // Import bcrypt for password comparison
+      const bcrypt = (await import('bcrypt')).default;
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+      
+      if (!isCurrentPasswordValid) {
+        return false;
+      }
+
+      // Hash the new password
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+      
+      await db
+        .update(users)
+        .set({
+          password: hashedNewPassword,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId));
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to change password:', error);
+      return false;
+    }
+  }
+
+  async updateUserAvatar(userId: string, avatar: string): Promise<User | undefined> {
+    try {
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          avatar,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId))
+        .returning();
+      return updatedUser || undefined;
+    } catch (error) {
+      console.error('Failed to update user avatar:', error);
+      return undefined;
+    }
+  }
+
+  async deleteUserAccount(userId: string, password: string): Promise<boolean> {
+    try {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId));
+      
+      if (!user) {
+        return false;
+      }
+
+      // Import bcrypt for password verification
+      const bcrypt = (await import('bcrypt')).default;
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      
+      if (!isPasswordValid) {
+        return false;
+      }
+
+      // In a real application, you might want to soft delete instead of hard delete
+      // to preserve order history and other related data
+      await db
+        .delete(users)
+        .where(eq(users.id, userId));
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to delete user account:', error);
+      return false;
+    }
+  }
 }
 
 // export const storage = new MemStorage();
