@@ -5,9 +5,11 @@ import { useLocation } from "wouter";
 
 interface ProductCardProps {
   product: Product;
+  className?: string;
+  compact?: boolean;
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, className = "", compact = false }: ProductCardProps) {
   const [, setLocation] = useLocation();
   const isInStock = product.inStock && product.stockQuantity > 0;
   const hasDiscount = product.originalPrice && parseFloat(product.originalPrice) > parseFloat(product.price);
@@ -22,35 +24,37 @@ export default function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <div className={`bg-card rounded-lg border border-border overflow-hidden card-hover neon-border ${!isInStock ? 'opacity-75' : ''}`} data-testid={`card-product-${product.id}`}>
-      <div className="relative bg-muted/20 p-6 border-b border-border">
-        <div className="flex justify-between items-start mb-4">
-          <span className="px-2 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-md">
-            {product.category}
-          </span>
-          {hasDiscount && (
-            <span className="px-2 py-1 bg-purple-600 text-white text-xs font-medium rounded-md">
-              SALE
+    <div className={`bg-card rounded-lg border border-border overflow-hidden card-hover neon-border ${!isInStock ? 'opacity-75' : ''} ${className}`} data-testid={`card-product-${product.id}`}>
+      <div className={`relative bg-muted/20 ${compact ? 'p-3' : 'p-6'} border-b border-border`}>
+        {!compact && (
+          <div className="flex justify-between items-start mb-4">
+            <span className="px-2 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-md">
+              {product.category}
             </span>
-          )}
-        </div>
+            {hasDiscount && (
+              <span className="px-2 py-1 bg-purple-600 text-white text-xs font-medium rounded-md">
+                SALE
+              </span>
+            )}
+          </div>
+        )}
         <div className="text-center cursor-pointer" onClick={handleViewDetails}>
           {product.imageUrl ? (
             <img 
               src={product.imageUrl} 
               alt={product.name}
-              className="w-[360px] h-auto mx-auto mb-2 rounded-md object-cover hover:opacity-90 transition-opacity"
+              className={`${compact ? 'w-full h-24' : 'w-[360px] h-auto'} mx-auto mb-2 rounded-md object-cover hover:opacity-90 transition-opacity`}
             />
           ) : (
-            <Package className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
+            <Package className={`${compact ? 'w-6 h-6' : 'w-12 h-12'} text-muted-foreground mx-auto mb-2`} />
           )}
-          <h3 className="text-lg font-semibold hover:text-primary transition-colors" data-testid={`text-product-name-${product.id}`}>
+          <h3 className={`${compact ? 'text-sm' : 'text-lg'} font-semibold hover:text-primary transition-colors ${compact ? 'truncate' : ''}`} data-testid={`text-product-name-${product.id}`}>
             {product.name}
           </h3>
         </div>
       </div>
       
-      <div className="p-6">
+      <div className={`${compact ? 'p-3' : 'p-6'}`}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <Package className="w-4 h-4 text-muted-foreground" />

@@ -5,13 +5,19 @@ import Header from "@/components/header";
 import DropdownFilters, { FilterState } from "@/components/sidebar-filters";
 import ProductCard from "@/components/product-card";
 import ProductGroupCard from "@/components/product-group-card";
+import AdvancedSearch from "@/components/advanced-search";
+import ProductRecommendations, { RecentlyViewed } from "@/components/product-recommendations";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Grid, List, Sparkles } from "lucide-react";
 
 export default function Products() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("name");
   const [viewMode, setViewMode] = useState<"groups" | "individual">("groups");
+  const [useAdvancedSearch, setUseAdvancedSearch] = useState(false);
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [filters, setFilters] = useState<FilterState>({
     categories: [],
     games: [],
@@ -28,10 +34,21 @@ export default function Products() {
     queryKey: ['/api/product-groups'],
   });
 
+  // Handle search results from advanced search component
+  const handleSearchResults = (results: Product[]) => {
+    setSearchResults(results);
+    setUseAdvancedSearch(true);
+  };
+
   const filteredAndSortedProducts = useMemo(() => {
+    // Use advanced search results if available, otherwise fallback to legacy filtering
+    if (useAdvancedSearch) {
+      return searchResults;
+    }
+
     let filtered = products;
 
-    // Search filter
+    // Legacy search filter (for backward compatibility)
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(product =>
@@ -78,7 +95,7 @@ export default function Products() {
       });
     }
 
-    // Sort
+    // Sort (only for legacy mode)
     const sorted = [...filtered].sort((a, b) => {
       switch (sortBy) {
         case "price-low":
@@ -97,7 +114,7 @@ export default function Products() {
     });
 
     return sorted;
-  }, [products, searchQuery, filters, sortBy]);
+  }, [products, searchQuery, filters, sortBy, useAdvancedSearch, searchResults]);
 
   const filteredAndSortedGroups = useMemo(() => {
     let filtered = productGroups;
@@ -188,22 +205,60 @@ export default function Products() {
             </h1>
             
             <div className="flex items-center space-x-4">
-              <DropdownFilters filters={filters} onFiltersChange={setFilters} />
-              <span className="text-sm text-muted-foreground">Sort by:</span>
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-48" data-testid="select-sort">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="name">Name</SelectItem>
-                  <SelectItem value="price-low">Price: Low to High</SelectItem>
-                  <SelectItem value="price-high">Price: High to Low</SelectItem>
-                  <SelectItem value="popular">Most Popular</SelectItem>
-                  <SelectItem value="newest">Newest</SelectItem>
-                </SelectContent>
-              </Select>
+              <Button
+                variant={useAdvancedSearch ? "default" : "outline"}
+                onClick={() => {
+                  setUseAdvancedSearch(!useAdvancedSearch);
+                  if (!useAdvancedSearch) {
+                    // Reset to show all products when switching to advanced mode
+                    setSearchResults([]);
+                  }
+                }}
+                className="text-sm"
+              >
+                <Sparkles className="w-4 h-4 mr-1" />
+                {useAdvancedSearch ? "Advanced Search" : "Enable Advanced"}
+              </Button>
+              
+              <Button
+                variant="outline"
+                onClick={() => setViewMode(viewMode === "groups" ? "individual" : "groups")}
+                className="text-sm"
+              >
+                {viewMode === "groups" ? <List className="w-4 h-4 mr-1" /> : <Grid className="w-4 h-4 mr-1" />}
+                {viewMode === "groups" ? "Individual View" : "Group View"}
+              </Button>
             </div>
           </div>
+
+          {/* Advanced Search Component */}
+          {useAdvancedSearch ? (
+            <div className="mb-8">
+              <AdvancedSearch onResults={handleSearchResults} />
+            </div>
+          ) : (
+            <div className="flex items-center justify-between mb-6">
+              <DropdownFilters filters={filters} onFiltersChange={setFilters} />
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">Sort by:</span>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-48" data-testid="select-sort">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">Name</SelectItem>
+                    <SelectItem value="price-low">Price: Low to High</SelectItem>
+                    <SelectItem value="price-high">Price: High to Low</SelectItem>
+                    <SelectItem value="popular">Most Popular</SelectItem>
+                    <SelectItem value="newest">Newest</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          {/* Recently Viewed Products */}
+          <RecentlyViewed className="mb-8" limit={8} />
 
             {(isLoading || isLoadingGroups) ? (
               <div className="product-grid">
