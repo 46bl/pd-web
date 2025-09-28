@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Star, ThumbsUp, User, Verified } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Star, ThumbsUp, User, Verified, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface ProductReview {
@@ -79,6 +80,8 @@ export default function ProductReviews({ productId, currentUserId, onReviewAdded
     title: '',
     comment: ''
   });
+  const [editingReview, setEditingReview] = useState<ProductReview | null>(null);
+  const [deletingReview, setDeletingReview] = useState<string | null>(null);
 
   // Fetch reviews
   const fetchReviews = async () => {
@@ -105,33 +108,47 @@ export default function ProductReviews({ productId, currentUserId, onReviewAdded
     fetchReviews();
   }, [productId, currentUserId]);
 
-  // Submit review
+  // Submit review (create or update)
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUserId) return;
 
     setSubmitting(true);
     try {
-      const response = await fetch(`/api/products/${productId}/reviews`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+      let response;
+      if (editingReview) {
+        // Update existing review
+        response = await fetch(`/api/reviews/${editingReview.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+        });
+      } else {
+        // Create new review
+        response = await fetch(`/api/products/${productId}/reviews`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+        });
+      }
 
       if (response.ok) {
         setShowForm(false);
+        setEditingReview(null);
         setFormData({ rating: 5, title: '', comment: '' });
         fetchReviews();
         onReviewAdded?.();
       } else {
         const error = await response.json();
-        alert(error.message || 'Failed to submit review');
+        alert(error.message || `Failed to ${editingReview ? 'update' : 'submit'} review`);
       }
     } catch (error) {
-      console.error('Failed to submit review:', error);
-      alert('Failed to submit review');
+      console.error(`Failed to ${editingReview ? 'update' : 'submit'} review:`, error);
+      alert(`Failed to ${editingReview ? 'update' : 'submit'} review`);
     } finally {
       setSubmitting(false);
     }
@@ -150,6 +167,47 @@ export default function ProductReviews({ productId, currentUserId, onReviewAdded
     } catch (error) {
       console.error('Failed to mark review as helpful:', error);
     }
+  };
+
+  // Edit review
+  const handleEditReview = (review: ProductReview) => {
+    setEditingReview(review);
+    setFormData({
+      rating: review.rating,
+      title: review.title || '',
+      comment: review.comment || ''
+    });
+    setShowForm(true);
+  };
+
+  // Delete review
+  const handleDeleteReview = async (reviewId: string) => {
+    setDeletingReview(reviewId);
+    try {
+      const response = await fetch(`/api/reviews/${reviewId}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        fetchReviews();
+        onReviewAdded?.(); // Refresh product data
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to delete review');
+      }
+    } catch (error) {
+      console.error('Failed to delete review:', error);
+      alert('Failed to delete review');
+    } finally {
+      setDeletingReview(null);
+    }
+  };
+
+  // Cancel editing
+  const handleCancelEdit = () => {
+    setEditingReview(null);
+    setShowForm(false);
+    setFormData({ rating: 5, title: '', comment: '' });
   };
 
   // Calculate average rating
@@ -198,7 +256,7 @@ export default function ProductReviews({ productId, currentUserId, onReviewAdded
       {showForm && currentUserId && (
         <Card>
           <CardHeader>
-            <CardTitle>Write Your Review</CardTitle>
+            <CardTitle>{editingReview ? 'Edit Your Review' : 'Write Your Review'}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmitReview} className="space-y-4">
@@ -236,12 +294,12 @@ export default function ProductReviews({ productId, currentUserId, onReviewAdded
               
               <div className="flex space-x-2">
                 <Button type="submit" disabled={submitting}>
-                  {submitting ? 'Submitting...' : 'Submit Review'}
+                  {submitting ? (editingReview ? 'Updating...' : 'Submitting...') : (editingReview ? 'Update Review' : 'Submit Review')}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setShowForm(false)}
+                  onClick={editingReview ? handleCancelEdit : () => setShowForm(false)}
                 >
                   Cancel
                 </Button>
@@ -305,6 +363,52 @@ export default function ProductReviews({ productId, currentUserId, onReviewAdded
                     <ThumbsUp className="w-4 h-4 mr-1" />
                     Helpful ({review.helpfulCount})
                   </Button>
+                  
+                  {/* Review Management Buttons for Owner */}
+                  {currentUserId === review.userId && (
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditReview(review)}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <Edit className="w-4 h-4 mr-1" />
+                        Edit
+                      </Button>
+                      
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground hover:text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Delete
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Review</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete this review? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteReview(review.id)}
+                              className="bg-red-600 hover:bg-red-700"
+                              disabled={deletingReview === review.id}
+                            >
+                              {deletingReview === review.id ? 'Deleting...' : 'Delete'}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

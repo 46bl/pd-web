@@ -94,6 +94,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "You have already reviewed this product" });
       }
 
+      // Check if user has purchased this product to set verified purchase status
+      const userOrders = await storage.getUserOrders(userId);
+      const hasPurchased = userOrders.some(order => 
+        order.productId === productId && order.status === 'completed'
+      );
+
       // Validate request body
       const result = insertProductReviewSchema.safeParse({
         ...req.body,
@@ -108,7 +114,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const review = await storage.addProductReview(result.data);
+      const review = await storage.addProductReview({
+        ...result.data,
+        isVerifiedPurchase: hasPurchased
+      });
       res.status(201).json(review);
     } catch (error) {
       console.error('Failed to add product review:', error);
