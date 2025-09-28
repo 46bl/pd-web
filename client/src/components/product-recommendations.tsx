@@ -126,7 +126,9 @@ export function RecentlyViewed({ className = "", limit = 8 }: RecentlyViewedProp
   const { data: recentlyViewed = [], isLoading } = useQuery<Product[]>({
     queryKey: ['/api/recently-viewed'],
     queryFn: async () => {
-      const response = await fetch('/api/recently-viewed');
+      const response = await fetch('/api/recently-viewed', {
+        credentials: 'include'
+      });
       if (!response.ok) {
         // If user is not authenticated, return empty array
         if (response.status === 401) {
