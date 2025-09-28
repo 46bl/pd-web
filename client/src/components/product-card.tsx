@@ -2,6 +2,7 @@ import { Product } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Check, X, Package, Eye, Star, ShoppingCart } from "lucide-react";
 import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
 
 interface ProductCardProps {
   product: Product;
@@ -19,7 +20,22 @@ export default function ProductCard({ product, className = "", compact = false }
     setLocation(`/checkout/${productData}`);
   };
 
-  const handleViewDetails = () => {
+  const { user } = useAuth();
+
+  const handleViewDetails = async () => {
+    // Track product view for authenticated users
+    if (user) {
+      try {
+        await fetch(`/api/recently-viewed/${product.id}`, {
+          method: 'POST',
+          credentials: 'include'
+        });
+      } catch (error) {
+        // Silently ignore tracking errors to not disrupt user experience
+        console.debug('Failed to track product view:', error);
+      }
+    }
+    
     setLocation(`/product/${product.id}`);
   };
 
