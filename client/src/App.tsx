@@ -10,6 +10,8 @@ import About from "@/pages/about";
 import Checkout from "@/pages/checkout";
 import AdminLogin from "@/pages/admin-login";
 import Admin from "@/pages/admin";
+import CustomerLogin from "@/pages/customer-login";
+import CustomerDashboard from "@/pages/customer-dashboard";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -22,6 +24,8 @@ function Router() {
       <Route path="/checkout/:productData" component={Checkout} />
       <Route path="/admin-login" component={AdminLogin} />
       <Route path="/admin" component={Admin} />
+      <Route path="/customer-login" component={CustomerLogin} />
+      <Route path="/customer-dashboard" component={CustomerDashboard} />
       <Route component={NotFound} />
     </Switch>
   );
