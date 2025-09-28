@@ -54,6 +54,9 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
             <a href="/about" className="text-foreground hover:text-primary transition-colors" data-testid="link-about">
               About
             </a>
+            <a href="/customer-login" className="text-foreground hover:text-primary transition-colors border border-primary/20 px-3 py-1 rounded" data-testid="link-customer">
+              My Orders
+            </a>
           </nav>
 
           {/* Mobile Menu Button */}
@@ -76,6 +79,9 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
                 </a>
                 <a href="/about" className="text-foreground hover:text-primary transition-colors" data-testid="link-mobile-about">
                   About
+                </a>
+                <a href="/customer-login" className="text-foreground hover:text-primary transition-colors border border-primary/20 px-3 py-1 rounded" data-testid="link-mobile-customer">
+                  My Orders
                 </a>
               </nav>
             </SheetContent>
