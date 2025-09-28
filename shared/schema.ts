@@ -44,6 +44,7 @@ export const users = pgTable("users", {
   firstName: text("first_name"),
   lastName: text("last_name"),
   avatar: text("avatar"),
+  role: text("role").notNull().default("user"), // "user", "admin", "moderator"
   isActive: boolean("is_active").notNull().default(true),
   emailVerified: boolean("email_verified").notNull().default(false),
   passwordResetToken: text("password_reset_token"),

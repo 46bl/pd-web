@@ -704,6 +704,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Discount Codes API Routes
+
+  // Validate discount code (public - used during checkout)
+  app.post("/api/discount-codes/validate", async (req, res) => {
+    try {
+      const { code, orderAmount } = req.body;
+      
+      if (!code) {
+        return res.status(400).json({ message: 'Discount code is required' });
+      }
+      
+      const discount = await storage.validateDiscountCode(code.toUpperCase());
+      if (!discount) {
+        return res.status(404).json({ message: 'Invalid or expired discount code' });
+      }
+      
+      // Check minimum order amount
+      if (orderAmount && parseFloat(orderAmount) < parseFloat(discount.minOrderAmount || '0')) {
+        return res.status(400).json({ 
+          message: `Minimum order amount of $${discount.minOrderAmount} required` 
+        });
+      }
+      
+      // Calculate discount amount
+      let discountAmount = 0;
+      if (discount.type === 'percentage') {
+        discountAmount = (parseFloat(orderAmount || '0') * parseFloat(discount.value)) / 100;
+      } else {
+        discountAmount = parseFloat(discount.value);
+      }
+      
+      res.json({
+        code: discount.code,
+        type: discount.type,
+        value: discount.value,
+        discountAmount,
+        minOrderAmount: discount.minOrderAmount,
+        valid: true
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to validate discount code' });
+    }
+  });
+
+  // Admin discount code management routes (require admin auth)
+  
+  // Get all discount codes (admin only)
+  app.get("/api/admin/discount-codes", requireUserAuth, async (req, res) => {
+    try {
+      // Check if user has admin role
+      const user = req.user!;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const discountCodes = await storage.getAllDiscountCodes();
+      res.json(discountCodes);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch discount codes' });
+    }
+  });
+  
+  // Create new discount code (admin only)
+  app.post("/api/admin/discount-codes", requireUserAuth, async (req, res) => {
+    try {
+      // Check if user has admin role
+      const user = req.user!;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const discountData = {
+        ...req.body,
+        createdBy: user.id
+      };
+      
+      const discountCode = await storage.createDiscountCode(discountData);
+      res.status(201).json(discountCode);
+    } catch (error) {
+      if (error?.message?.includes('unique') || error?.code === '23505') {
+        return res.status(400).json({ message: 'Discount code already exists' });
+      }
+      res.status(500).json({ message: 'Failed to create discount code' });
+    }
+  });
+
+  // Update discount code (admin only)
+  app.put("/api/admin/discount-codes/:id", requireUserAuth, async (req, res) => {
+    try {
+      // Check if user has admin role
+      const user = req.user!;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const { id } = req.params;
+      const updateData = req.body;
+      
+      const updatedCode = await storage.updateDiscountCode(id, updateData);
+      if (!updatedCode) {
+        return res.status(404).json({ message: 'Discount code not found' });
+      }
+      
+      res.json(updatedCode);
+    } catch (error) {
+      if (error?.message?.includes('unique') || error?.code === '23505') {
+        return res.status(400).json({ message: 'Discount code already exists' });
+      }
+      res.status(500).json({ message: 'Failed to update discount code' });
+    }
+  });
+
+  // Delete discount code (admin only)
+  app.delete("/api/admin/discount-codes/:id", requireUserAuth, async (req, res) => {
+    try {
+      // Check if user has admin role
+      const user = req.user!;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const { id } = req.params;
+      
+      const success = await storage.deleteDiscountCode(id);
+      if (!success) {
+        return res.status(404).json({ message: 'Discount code not found' });
+      }
+      
+      res.json({ message: 'Discount code deleted successfully' });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to delete discount code' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -110,6 +110,9 @@ export interface IStorage {
   // Discount codes (ready for future activation)
   validateDiscountCode(code: string): Promise<DiscountCode | null>;
   createDiscountCode(discount: InsertDiscountCode): Promise<DiscountCode>;
+  getAllDiscountCodes(): Promise<DiscountCode[]>;
+  updateDiscountCode(id: string, updateData: Partial<InsertDiscountCode>): Promise<DiscountCode | null>;
+  deleteDiscountCode(id: string): Promise<boolean>;
   
   // Referral system
   createReferral(referral: InsertReferral): Promise<Referral>;
@@ -1818,6 +1821,45 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return discountCode;
+  }
+
+  async getAllDiscountCodes(): Promise<DiscountCode[]> {
+    const allCodes = await db
+      .select()
+      .from(discountCodes)
+      .orderBy(desc(discountCodes.createdAt));
+    return allCodes;
+  }
+
+  async updateDiscountCode(id: string, updateData: Partial<InsertDiscountCode>): Promise<DiscountCode | null> {
+    // Only include fields that are actually defined to avoid setting NULL values
+    const cleanUpdateData: any = {};
+    
+    Object.keys(updateData).forEach(key => {
+      const value = updateData[key as keyof InsertDiscountCode];
+      if (value !== undefined) {
+        if (key === 'code') {
+          cleanUpdateData[key] = value.toString().toUpperCase();
+        } else {
+          cleanUpdateData[key] = value;
+        }
+      }
+    });
+    
+    const [updatedCode] = await db
+      .update(discountCodes)
+      .set(cleanUpdateData)
+      .where(eq(discountCodes.id, id))
+      .returning();
+    return updatedCode || null;
+  }
+
+  async deleteDiscountCode(id: string): Promise<boolean> {
+    const result = await db
+      .delete(discountCodes)
+      .where(eq(discountCodes.id, id))
+      .returning();
+    return result.length > 0;
   }
 
   // Referral System
