@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertSupportTicketSchema, insertProductReviewSchema } from "@shared/schema";
+import { insertSupportTicketSchema, insertProductReviewSchema, insertWishlistSchema } from "@shared/schema";
 import { setupAuth } from "./auth";
 
 // Extend session to include admin authentication
@@ -209,6 +209,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Failed to mark review as helpful:', error);
       res.status(500).json({ message: "Failed to mark review as helpful" });
+    }
+  });
+
+  // Wishlist API
+  // Get user's wishlist
+  app.get("/api/wishlist", requireUserAuth, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const wishlist = await storage.getUserWishlist(userId);
+      res.json(wishlist);
+    } catch (error) {
+      console.error('Failed to fetch wishlist:', error);
+      res.status(500).json({ message: "Failed to fetch wishlist" });
+    }
+  });
+
+  // Add product to wishlist
+  app.post("/api/wishlist/:productId", requireUserAuth, async (req: any, res) => {
+    try {
+      const { productId } = req.params;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      // Check if product exists
+      const product = await storage.getProduct(productId);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      // Check if already in wishlist
+      const isInWishlist = await storage.isProductInWishlist(userId, productId);
+      if (isInWishlist) {
+        return res.status(400).json({ message: "Product is already in wishlist" });
+      }
+
+      const wishlistItem = await storage.addToWishlist(userId, productId);
+      res.status(201).json(wishlistItem);
+    } catch (error) {
+      console.error('Failed to add to wishlist:', error);
+      res.status(500).json({ message: "Failed to add to wishlist" });
+    }
+  });
+
+  // Remove product from wishlist
+  app.delete("/api/wishlist/:productId", requireUserAuth, async (req: any, res) => {
+    try {
+      const { productId } = req.params;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const success = await storage.removeFromWishlist(userId, productId);
+      if (!success) {
+        return res.status(404).json({ message: "Product not found in wishlist" });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      console.error('Failed to remove from wishlist:', error);
+      res.status(500).json({ message: "Failed to remove from wishlist" });
+    }
+  });
+
+  // Check if product is in wishlist
+  app.get("/api/wishlist/check/:productId", requireUserAuth, async (req: any, res) => {
+    try {
+      const { productId } = req.params;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const isInWishlist = await storage.isProductInWishlist(userId, productId);
+      res.json({ isInWishlist });
+    } catch (error) {
+      console.error('Failed to check wishlist status:', error);
+      res.status(500).json({ message: "Failed to check wishlist status" });
     }
   });
 

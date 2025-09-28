@@ -8,11 +8,14 @@ import {
   type InsertSupportTicket,
   type ProductReview,
   type InsertProductReview,
+  type Wishlist,
+  type InsertWishlist,
   users,
   products,
   supportTickets,
   orders,
   productReviews,
+  wishlists,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { eq, and, or, gte, lte, ilike, inArray, desc, sql } from "drizzle-orm";
@@ -76,6 +79,12 @@ export interface IStorage {
   deleteProductReview(id: string): Promise<boolean>;
   markReviewHelpful(reviewId: string): Promise<boolean>;
   hasUserReviewedProduct(userId: string, productId: string): Promise<boolean>;
+
+  // Wishlist management
+  addToWishlist(userId: string, productId: string): Promise<Wishlist>;
+  removeFromWishlist(userId: string, productId: string): Promise<boolean>;
+  getUserWishlist(userId: string): Promise<Wishlist[]>;
+  isProductInWishlist(userId: string, productId: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -1051,6 +1060,23 @@ export class MemStorage implements IStorage {
   async hasUserReviewedProduct(userId: string, productId: string): Promise<boolean> {
     throw new Error("Product reviews not implemented in MemStorage - use DatabaseStorage instead");
   }
+
+  // Wishlist methods - stub implementations
+  async addToWishlist(userId: string, productId: string): Promise<Wishlist> {
+    throw new Error("Wishlist functionality not implemented in MemStorage - use DatabaseStorage instead");
+  }
+
+  async removeFromWishlist(userId: string, productId: string): Promise<boolean> {
+    throw new Error("Wishlist functionality not implemented in MemStorage - use DatabaseStorage instead");
+  }
+
+  async getUserWishlist(userId: string): Promise<Wishlist[]> {
+    throw new Error("Wishlist functionality not implemented in MemStorage - use DatabaseStorage instead");
+  }
+
+  async isProductInWishlist(userId: string, productId: string): Promise<boolean> {
+    throw new Error("Wishlist functionality not implemented in MemStorage - use DatabaseStorage instead");
+  }
 }
 
 // DatabaseStorage implementation for PostgreSQL
@@ -1487,6 +1513,63 @@ export class DatabaseStorage implements IStorage {
         reviewCount: reviewCount
       })
       .where(eq(products.id, productId));
+  }
+
+  // Wishlist management methods
+  async addToWishlist(userId: string, productId: string): Promise<Wishlist> {
+    // Check if already in wishlist to prevent duplicates
+    const exists = await this.isProductInWishlist(userId, productId);
+    if (exists) {
+      throw new Error("Product is already in wishlist");
+    }
+
+    const [wishlistItem] = await db
+      .insert(wishlists)
+      .values({ userId, productId })
+      .returning();
+
+    return wishlistItem;
+  }
+
+  async removeFromWishlist(userId: string, productId: string): Promise<boolean> {
+    try {
+      const result = await db
+        .delete(wishlists)
+        .where(
+          and(
+            eq(wishlists.userId, userId),
+            eq(wishlists.productId, productId)
+          )
+        );
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to remove from wishlist:', error);
+      return false;
+    }
+  }
+
+  async getUserWishlist(userId: string): Promise<Wishlist[]> {
+    return await db
+      .select()
+      .from(wishlists)
+      .where(eq(wishlists.userId, userId))
+      .orderBy(desc(wishlists.createdAt));
+  }
+
+  async isProductInWishlist(userId: string, productId: string): Promise<boolean> {
+    const [item] = await db
+      .select()
+      .from(wishlists)
+      .where(
+        and(
+          eq(wishlists.userId, userId),
+          eq(wishlists.productId, productId)
+        )
+      )
+      .limit(1);
+
+    return !!item;
   }
 }
 
