@@ -6,13 +6,16 @@ import {
   type ProductGroup,
   type SupportTicket,
   type InsertSupportTicket,
+  type ProductReview,
+  type InsertProductReview,
   users,
   products,
   supportTickets,
   orders,
+  productReviews,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { eq, and, or, gte, lte, ilike, inArray, desc } from "drizzle-orm";
+import { eq, and, or, gte, lte, ilike, inArray, desc, sql } from "drizzle-orm";
 import { db } from "./db.js";
 
 export interface Order {
@@ -64,6 +67,15 @@ export interface IStorage {
   updateOrderLicenseKey(id: string, licenseKey: string, downloadUrl?: string): Promise<Order | undefined>;
   getUserOrders(userId: string): Promise<Order[]>;
   getUserOrder(orderId: string, userId: string): Promise<Order | undefined>;
+
+  // Product reviews
+  addProductReview(reviewData: InsertProductReview): Promise<ProductReview>;
+  getProductReviews(productId: string): Promise<ProductReview[]>;
+  getProductReview(reviewId: string): Promise<ProductReview | undefined>;
+  updateProductReview(id: string, updateData: Partial<InsertProductReview>): Promise<ProductReview | undefined>;
+  deleteProductReview(id: string): Promise<boolean>;
+  markReviewHelpful(reviewId: string): Promise<boolean>;
+  hasUserReviewedProduct(userId: string, productId: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -1010,6 +1022,35 @@ export class MemStorage implements IStorage {
     }
     return order;
   }
+
+  // Product review methods - stub implementations
+  async addProductReview(reviewData: InsertProductReview): Promise<ProductReview> {
+    throw new Error("Product reviews not implemented in MemStorage - use DatabaseStorage instead");
+  }
+
+  async getProductReviews(productId: string): Promise<ProductReview[]> {
+    throw new Error("Product reviews not implemented in MemStorage - use DatabaseStorage instead");
+  }
+
+  async getProductReview(reviewId: string): Promise<ProductReview | undefined> {
+    throw new Error("Product reviews not implemented in MemStorage - use DatabaseStorage instead");
+  }
+
+  async updateProductReview(id: string, updateData: Partial<InsertProductReview>): Promise<ProductReview | undefined> {
+    throw new Error("Product reviews not implemented in MemStorage - use DatabaseStorage instead");
+  }
+
+  async deleteProductReview(id: string): Promise<boolean> {
+    throw new Error("Product reviews not implemented in MemStorage - use DatabaseStorage instead");
+  }
+
+  async markReviewHelpful(reviewId: string): Promise<boolean> {
+    throw new Error("Product reviews not implemented in MemStorage - use DatabaseStorage instead");
+  }
+
+  async hasUserReviewedProduct(userId: string, productId: string): Promise<boolean> {
+    throw new Error("Product reviews not implemented in MemStorage - use DatabaseStorage instead");
+  }
 }
 
 // DatabaseStorage implementation for PostgreSQL
@@ -1303,6 +1344,149 @@ export class DatabaseStorage implements IStorage {
       console.error('Failed to delete user account:', error);
       return false;
     }
+  }
+
+  // Product review methods
+  async addProductReview(reviewData: InsertProductReview): Promise<ProductReview> {
+    // Check if user has purchased this product to set verified purchase status
+    const [purchaseOrder] = await db
+      .select()
+      .from(orders)
+      .where(
+        and(
+          eq(orders.userId, reviewData.userId),
+          eq(orders.productId, reviewData.productId),
+          eq(orders.status, "completed")
+        )
+      )
+      .limit(1);
+
+    const [review] = await db
+      .insert(productReviews)
+      .values({
+        ...reviewData,
+        isVerifiedPurchase: !!purchaseOrder
+      })
+      .returning();
+
+    // Update product's average rating and review count
+    await this.updateProductRatingStats(reviewData.productId);
+
+    return review;
+  }
+
+  async getProductReviews(productId: string): Promise<ProductReview[]> {
+    return await db
+      .select()
+      .from(productReviews)
+      .where(eq(productReviews.productId, productId))
+      .orderBy(desc(productReviews.createdAt));
+  }
+
+  async getProductReview(reviewId: string): Promise<ProductReview | undefined> {
+    const [review] = await db
+      .select()
+      .from(productReviews)
+      .where(eq(productReviews.id, reviewId));
+    return review || undefined;
+  }
+
+  async updateProductReview(id: string, updateData: Partial<InsertProductReview>): Promise<ProductReview | undefined> {
+    const [updatedReview] = await db
+      .update(productReviews)
+      .set({
+        ...updateData,
+        updatedAt: sql`now()`
+      })
+      .where(eq(productReviews.id, id))
+      .returning();
+
+    if (updatedReview && updateData.rating) {
+      // Update product rating stats if rating changed
+      await this.updateProductRatingStats(updatedReview.productId);
+    }
+
+    return updatedReview || undefined;
+  }
+
+  async deleteProductReview(id: string): Promise<boolean> {
+    try {
+      // Get the review to update product stats after deletion
+      const [review] = await db
+        .select()
+        .from(productReviews)
+        .where(eq(productReviews.id, id));
+
+      if (!review) {
+        return false;
+      }
+
+      await db
+        .delete(productReviews)
+        .where(eq(productReviews.id, id));
+
+      // Update product rating stats
+      await this.updateProductRatingStats(review.productId);
+
+      return true;
+    } catch (error) {
+      console.error('Failed to delete product review:', error);
+      return false;
+    }
+  }
+
+  async markReviewHelpful(reviewId: string): Promise<boolean> {
+    try {
+      await db
+        .update(productReviews)
+        .set({
+          helpfulCount: sql`${productReviews.helpfulCount} + 1`
+        })
+        .where(eq(productReviews.id, reviewId));
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to mark review as helpful:', error);
+      return false;
+    }
+  }
+
+  async hasUserReviewedProduct(userId: string, productId: string): Promise<boolean> {
+    const [existingReview] = await db
+      .select()
+      .from(productReviews)
+      .where(
+        and(
+          eq(productReviews.userId, userId),
+          eq(productReviews.productId, productId)
+        )
+      )
+      .limit(1);
+
+    return !!existingReview;
+  }
+
+  // Helper method to update product rating statistics
+  private async updateProductRatingStats(productId: string): Promise<void> {
+    const reviewStats = await db
+      .select({
+        avgRating: sql<number>`AVG(${productReviews.rating})`,
+        totalReviews: sql<number>`COUNT(*)`
+      })
+      .from(productReviews)
+      .where(eq(productReviews.productId, productId));
+
+    const stats = reviewStats[0];
+    const averageRating = stats?.avgRating ? Math.round(stats.avgRating * 100) / 100 : 0;
+    const reviewCount = stats?.totalReviews || 0;
+
+    await db
+      .update(products)
+      .set({
+        averageRating: averageRating,
+        reviewCount: reviewCount
+      })
+      .where(eq(products.id, productId));
   }
 }
 
