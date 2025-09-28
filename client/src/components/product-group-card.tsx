@@ -128,19 +128,31 @@ export default function ProductGroupCard({ group }: ProductGroupCardProps) {
           </div>
         </div>
 
-        <Button
-          className={`w-full px-4 py-2 rounded-lg font-medium transition-colors ${
-            isInStock
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-              : 'bg-muted text-muted-foreground cursor-not-allowed'
-          }`}
-          disabled={!isInStock}
-          onClick={handleCheckoutClick}
-          data-testid={`button-checkout-${group.id}`}
-        >
-          <ShoppingCart className="w-4 h-4 mr-2" />
-          {isInStock ? 'Checkout' : 'Out of Stock'}
-        </Button>
+        <div className="space-y-2">
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => setLocation(`/product/${selectedVariant.id}`)}
+            data-testid={`button-details-${group.id}`}
+          >
+            <Package className="w-4 h-4 mr-2" />
+            View Details
+          </Button>
+          
+          <Button
+            className={`w-full px-4 py-2 rounded-lg font-medium transition-colors ${
+              isInStock
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                : 'bg-muted text-muted-foreground cursor-not-allowed'
+            }`}
+            disabled={!isInStock}
+            onClick={handleCheckoutClick}
+            data-testid={`button-checkout-${group.id}`}
+          >
+            <ShoppingCart className="w-4 h-4 mr-2" />
+            {isInStock ? 'Checkout' : 'Out of Stock'}
+          </Button>
+        </div>
       </div>
     </div>
   );
