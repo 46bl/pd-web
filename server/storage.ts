@@ -10,12 +10,27 @@ import {
   type InsertProductReview,
   type Wishlist,
   type InsertWishlist,
+  type RecentlyViewed,
+  type InsertRecentlyViewed,
+  type DiscountCode,
+  type InsertDiscountCode,
+  type FaqItem,
+  type InsertFaqItem,
+  type Referral,
+  type InsertReferral,
+  type UserActivity,
+  type InsertUserActivity,
   users,
   products,
   supportTickets,
   orders,
   productReviews,
   wishlists,
+  recentlyViewed,
+  discountCodes,
+  faqItems,
+  referrals,
+  userActivity,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { eq, and, or, gte, lte, ilike, inArray, desc, sql } from "drizzle-orm";
@@ -73,6 +88,35 @@ export interface IStorage {
 
   // Product reviews
   addProductReview(reviewData: InsertProductReview): Promise<ProductReview>;
+  
+  // Recently viewed products
+  addRecentlyViewed(userId: string, productId: string): Promise<void>;
+  getRecentlyViewed(userId: string): Promise<Product[]>;
+  
+  // Wishlist functionality
+  addToWishlist(userId: string, productId: string): Promise<Wishlist>;
+  removeFromWishlist(userId: string, productId: string): Promise<void>;
+  getUserWishlist(userId: string): Promise<Product[]>;
+  isInWishlist(userId: string, productId: string): Promise<boolean>;
+  
+  // User activity tracking
+  logUserActivity(activity: InsertUserActivity): Promise<void>;
+  getUserActivity(userId: string): Promise<UserActivity[]>;
+  
+  // FAQ functionality
+  getFaqItems(category?: string): Promise<FaqItem[]>;
+  addFaqItem(faq: InsertFaqItem): Promise<FaqItem>;
+  
+  // Discount codes (ready for future activation)
+  validateDiscountCode(code: string): Promise<DiscountCode | null>;
+  createDiscountCode(discount: InsertDiscountCode): Promise<DiscountCode>;
+  
+  // Referral system
+  createReferral(referral: InsertReferral): Promise<Referral>;
+  getReferralByCode(code: string): Promise<Referral | null>;
+  getUserReferrals(userId: string): Promise<Referral[]>;
+  
+  // Product reviews (existing methods)
   getProductReviews(productId: string): Promise<ProductReview[]>;
   getProductReview(reviewId: string): Promise<ProductReview | undefined>;
   updateProductReview(id: string, updateData: Partial<InsertProductReview>): Promise<ProductReview | undefined>;
@@ -80,11 +124,18 @@ export interface IStorage {
   markReviewHelpful(reviewId: string): Promise<boolean>;
   hasUserReviewedProduct(userId: string, productId: string): Promise<boolean>;
 
-  // Wishlist management
-  addToWishlist(userId: string, productId: string): Promise<Wishlist>;
-  removeFromWishlist(userId: string, productId: string): Promise<boolean>;
-  getUserWishlist(userId: string): Promise<Wishlist[]>;
-  isProductInWishlist(userId: string, productId: string): Promise<boolean>;
+  // Enhanced search and filtering
+  getAdvancedProductSearch(query: string, filters: {
+    categories?: string[];
+    games?: string[];
+    priceRange?: { min: number; max: number };
+    inStock?: boolean;
+    sortBy?: 'price' | 'rating' | 'newest';
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<Product[]>;
+  
+  // Product recommendations
+  getProductRecommendations(userId?: string, productId?: string, limit?: number): Promise<Product[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -1605,6 +1656,351 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
 
     return !!item;
+  }
+
+  // Recently Viewed Products
+  async addRecentlyViewed(userId: string, productId: string): Promise<void> {
+    // First, check if this product was already viewed recently by this user
+    const existing = await db
+      .select()
+      .from(recentlyViewed)
+      .where(
+        and(
+          eq(recentlyViewed.userId, userId),
+          eq(recentlyViewed.productId, productId)
+        )
+      )
+      .limit(1);
+
+    if (existing.length > 0) {
+      // Update the viewed timestamp
+      await db
+        .update(recentlyViewed)
+        .set({ viewedAt: sql`now()` })
+        .where(
+          and(
+            eq(recentlyViewed.userId, userId),
+            eq(recentlyViewed.productId, productId)
+          )
+        );
+    } else {
+      // Insert new record
+      await db
+        .insert(recentlyViewed)
+        .values({ userId, productId });
+    }
+
+    // Keep only the last 20 viewed items per user
+    const allViewed = await db
+      .select()
+      .from(recentlyViewed)
+      .where(eq(recentlyViewed.userId, userId))
+      .orderBy(desc(recentlyViewed.viewedAt));
+
+    if (allViewed.length > 20) {
+      const toDelete = allViewed.slice(20);
+      const idsToDelete = toDelete.map(item => item.id);
+      await db
+        .delete(recentlyViewed)
+        .where(inArray(recentlyViewed.id, idsToDelete));
+    }
+  }
+
+  async getRecentlyViewed(userId: string): Promise<Product[]> {
+    const recentlyViewedProducts = await db
+      .select({
+        product: products
+      })
+      .from(recentlyViewed)
+      .innerJoin(products, eq(recentlyViewed.productId, products.id))
+      .where(eq(recentlyViewed.userId, userId))
+      .orderBy(desc(recentlyViewed.viewedAt))
+      .limit(10);
+
+    return recentlyViewedProducts.map(row => row.product);
+  }
+
+  // Wishlist functionality (enhanced versions)
+  async getUserWishlist(userId: string): Promise<Product[]> {
+    const wishlistItems = await db
+      .select({
+        product: products
+      })
+      .from(wishlists)
+      .innerJoin(products, eq(wishlists.productId, products.id))
+      .where(eq(wishlists.userId, userId))
+      .orderBy(desc(wishlists.createdAt));
+
+    return wishlistItems.map(row => row.product);
+  }
+
+  async removeFromWishlist(userId: string, productId: string): Promise<void> {
+    await db
+      .delete(wishlists)
+      .where(
+        and(
+          eq(wishlists.userId, userId),
+          eq(wishlists.productId, productId)
+        )
+      );
+  }
+
+  async isInWishlist(userId: string, productId: string): Promise<boolean> {
+    return this.isProductInWishlist(userId, productId);
+  }
+
+  // User Activity Tracking
+  async logUserActivity(activity: InsertUserActivity): Promise<void> {
+    await db
+      .insert(userActivity)
+      .values(activity);
+  }
+
+  async getUserActivity(userId: string): Promise<UserActivity[]> {
+    return await db
+      .select()
+      .from(userActivity)
+      .where(eq(userActivity.userId, userId))
+      .orderBy(desc(userActivity.createdAt))
+      .limit(100);
+  }
+
+  // FAQ Functionality
+  async getFaqItems(category?: string): Promise<FaqItem[]> {
+    let query = db.select().from(faqItems).where(eq(faqItems.isPublished, true));
+    
+    if (category) {
+      query = query.where(eq(faqItems.category, category));
+    }
+    
+    return await query.orderBy(faqItems.order, faqItems.createdAt);
+  }
+
+  async addFaqItem(faq: InsertFaqItem): Promise<FaqItem> {
+    const [faqItem] = await db
+      .insert(faqItems)
+      .values(faq)
+      .returning();
+    return faqItem;
+  }
+
+  // Discount Codes (ready for future activation)
+  async validateDiscountCode(code: string): Promise<DiscountCode | null> {
+    const [discount] = await db
+      .select()
+      .from(discountCodes)
+      .where(
+        and(
+          eq(discountCodes.code, code.toUpperCase()),
+          eq(discountCodes.isActive, true),
+          lte(discountCodes.validFrom, sql`now()`),
+          gte(discountCodes.validTo, sql`now()`)
+        )
+      )
+      .limit(1);
+
+    if (!discount) return null;
+
+    // Check if max uses reached
+    if (discount.maxUses && discount.usedCount >= discount.maxUses) {
+      return null;
+    }
+
+    return discount;
+  }
+
+  async createDiscountCode(discount: InsertDiscountCode): Promise<DiscountCode> {
+    const [discountCode] = await db
+      .insert(discountCodes)
+      .values({
+        ...discount,
+        code: discount.code.toUpperCase()
+      })
+      .returning();
+    return discountCode;
+  }
+
+  // Referral System
+  async createReferral(referral: InsertReferral): Promise<Referral> {
+    const [referralRecord] = await db
+      .insert(referrals)
+      .values(referral)
+      .returning();
+    return referralRecord;
+  }
+
+  async getReferralByCode(code: string): Promise<Referral | null> {
+    const [referral] = await db
+      .select()
+      .from(referrals)
+      .where(eq(referrals.referralCode, code))
+      .limit(1);
+    return referral || null;
+  }
+
+  async getUserReferrals(userId: string): Promise<Referral[]> {
+    return await db
+      .select()
+      .from(referrals)
+      .where(eq(referrals.referrerId, userId))
+      .orderBy(desc(referrals.createdAt));
+  }
+
+  // Enhanced Search and Filtering
+  async getAdvancedProductSearch(query: string, filters: {
+    categories?: string[];
+    games?: string[];
+    priceRange?: { min: number; max: number };
+    inStock?: boolean;
+    sortBy?: 'price' | 'rating' | 'newest';
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<Product[]> {
+    let dbQuery = db.select().from(products);
+    const conditions = [];
+
+    // Search query
+    if (query && query.trim()) {
+      const lowerQuery = `%${query.toLowerCase()}%`;
+      conditions.push(
+        or(
+          ilike(products.name, lowerQuery),
+          ilike(products.description, lowerQuery),
+          ilike(products.game, lowerQuery),
+          ilike(products.category, lowerQuery)
+        )
+      );
+    }
+
+    // Filters
+    if (filters.categories && filters.categories.length > 0) {
+      conditions.push(inArray(products.category, filters.categories));
+    }
+
+    if (filters.games && filters.games.length > 0) {
+      conditions.push(inArray(products.game, filters.games));
+    }
+
+    if (filters.priceRange) {
+      if (filters.priceRange.min) {
+        conditions.push(gte(products.price, filters.priceRange.min.toString()));
+      }
+      if (filters.priceRange.max) {
+        conditions.push(lte(products.price, filters.priceRange.max.toString()));
+      }
+    }
+
+    if (filters.inStock !== undefined) {
+      conditions.push(eq(products.inStock, filters.inStock));
+    }
+
+    // Apply conditions
+    if (conditions.length > 0) {
+      dbQuery = dbQuery.where(and(...conditions));
+    }
+
+    // Sorting
+    const sortOrder = filters.sortOrder === 'asc' ? 'asc' : 'desc';
+    switch (filters.sortBy) {
+      case 'price':
+        dbQuery = dbQuery.orderBy(sortOrder === 'asc' ? products.price : desc(products.price));
+        break;
+      case 'rating':
+        dbQuery = dbQuery.orderBy(sortOrder === 'asc' ? products.averageRating : desc(products.averageRating));
+        break;
+      case 'newest':
+        dbQuery = dbQuery.orderBy(sortOrder === 'asc' ? products.createdAt : desc(products.createdAt));
+        break;
+      default:
+        dbQuery = dbQuery.orderBy(desc(products.createdAt));
+    }
+
+    return await dbQuery;
+  }
+
+  // Product Recommendations
+  async getProductRecommendations(userId?: string, productId?: string, limit: number = 5): Promise<Product[]> {
+    if (productId) {
+      // Get recommendations based on product (similar products)
+      const [currentProduct] = await db
+        .select()
+        .from(products)
+        .where(eq(products.id, productId))
+        .limit(1);
+
+      if (!currentProduct) {
+        return await this.getPopularProducts(limit);
+      }
+
+      // Find products in same category/game
+      const recommendations = await db
+        .select()
+        .from(products)
+        .where(
+          and(
+            or(
+              eq(products.category, currentProduct.category),
+              eq(products.game, currentProduct.game)
+            ),
+            eq(products.inStock, true),
+            sql`${products.id} != ${productId}` // Exclude current product
+          )
+        )
+        .orderBy(desc(products.averageRating), desc(products.reviewCount))
+        .limit(limit);
+
+      return recommendations;
+    } else if (userId) {
+      // Get personalized recommendations based on user activity
+      const userPurchases = await db
+        .select({ productId: orders.productId })
+        .from(orders)
+        .where(eq(orders.userId, userId));
+
+      if (userPurchases.length === 0) {
+        return await this.getPopularProducts(limit);
+      }
+
+      const purchasedProductIds = userPurchases.map(p => p.productId);
+
+      // Find products from same categories as purchased products
+      const purchasedProducts = await db
+        .select()
+        .from(products)
+        .where(inArray(products.id, purchasedProductIds));
+
+      const categories = [...new Set(purchasedProducts.map(p => p.category))];
+      const games = [...new Set(purchasedProducts.map(p => p.game))];
+
+      const recommendations = await db
+        .select()
+        .from(products)
+        .where(
+          and(
+            or(
+              inArray(products.category, categories),
+              inArray(products.game, games)
+            ),
+            eq(products.inStock, true),
+            sql`${products.id} NOT IN (${purchasedProductIds.map(() => '?').join(', ')})`
+          )
+        )
+        .orderBy(desc(products.averageRating), desc(products.reviewCount))
+        .limit(limit);
+
+      return recommendations;
+    } else {
+      // General popular products
+      return await this.getPopularProducts(limit);
+    }
+  }
+
+  private async getPopularProducts(limit: number): Promise<Product[]> {
+    return await db
+      .select()
+      .from(products)
+      .where(eq(products.inStock, true))
+      .orderBy(desc(products.averageRating), desc(products.reviewCount))
+      .limit(limit);
   }
 }
 
