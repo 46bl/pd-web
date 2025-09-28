@@ -719,7 +719,7 @@ export class MemStorage implements IStorage {
           "External Apex Legends cheat with multiple duration options",
         category: "Game Cheats",
         game: "Apex Legends",
-        imageUrl: "https://i.postimg.cc/MpCksDdN/image.png",
+        imageUrl: "/attached_assets/apex-external-image.png",
         deliveryType: "download",
         variants: [
           {
@@ -849,7 +849,7 @@ export class MemStorage implements IStorage {
         description: "Professional DMA firmware for advanced users",
         category: "DMA Firmware",
         game: "Multi-Game",
-        imageUrl: "https://i.postimg.cc/BvnhB1Gk/image.png",
+        imageUrl: "/attached_assets/dma-hardware-image.png",
         deliveryType: "download",
         variants: [
           {
@@ -879,7 +879,7 @@ export class MemStorage implements IStorage {
         description: "Complete DMA hardware bundle with firmware included",
         category: "DMA Hardware",
         game: "Multi-Game",
-        imageUrl: "https://i.postimg.cc/jjCxmnSp/Screenshot-2025-09-13-150454.png",
+        imageUrl: "/attached_assets/dma-hardware-image.png",
         deliveryType: "download",
         variants: [
           {
@@ -1159,32 +1159,67 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProductGroups(): Promise<ProductGroup[]> {
-    // For now, return static product groups as in MemStorage
-    // Later we can implement a proper product groups table
-    return [
-      {
-        id: "rust-mek",
-        name: "Rust MEK",
-        description: "Premium Rust enhancement tool with multiple duration options",
-        category: "Game Cheats",
-        game: "Rust",
-        imageUrl: "/attached_assets/rust-mek-image.png",
-        deliveryType: "download",
-        variants: [
-          {
-            id: "rust-mek-1d",
-            name: "1 Day",
-            price: "7.99",
-            stockQuantity: 15,
-            inStock: true,
-            deliveryUrl: "https://secure.pdcheats.uk/downloads/rust-mek-1day.zip",
-            licenseKey: "RUST-MEK-1D-XXXX",
-          },
-          // ... other variants
-        ],
-      },
-      // ... other product groups
-    ];
+    // Get all products from database
+    const allProducts = await db.select().from(products);
+    
+    // Group products by base name (removing duration suffixes)
+    const groupMap = new Map<string, {
+      baseProduct: typeof allProducts[0],
+      variants: typeof allProducts
+    }>();
+    
+    for (const product of allProducts) {
+      let baseName: string;
+      
+      // Extract base name by removing duration patterns
+      if (product.name.includes(' - ')) {
+        baseName = product.name.split(' - ')[0];
+      } else {
+        baseName = product.name;
+      }
+      
+      if (!groupMap.has(baseName)) {
+        groupMap.set(baseName, {
+          baseProduct: product,
+          variants: []
+        });
+      }
+      
+      groupMap.get(baseName)!.variants.push(product);
+    }
+    
+    // Convert to ProductGroup format
+    const productGroups: ProductGroup[] = [];
+    
+    for (const [baseName, { baseProduct, variants }] of groupMap) {
+      // Always include all product groups, even single variants
+      
+      const group: ProductGroup = {
+        id: baseName.toLowerCase().replace(/\s+/g, '-'),
+        name: baseName,
+        description: variants.length > 1 ? 
+          `${baseProduct.description.split(' - ')[0]} with multiple duration options` :
+          baseProduct.description,
+        category: baseProduct.category,
+        game: baseProduct.game,
+        imageUrl: baseProduct.imageUrl,
+        deliveryType: baseProduct.deliveryType,
+        variants: variants.map(variant => ({
+          id: variant.id,
+          name: variant.name.includes(' - ') ? variant.name.split(' - ')[1] : 'Standard',
+          price: variant.price,
+          originalPrice: variant.originalPrice,
+          stockQuantity: variant.stockQuantity,
+          inStock: variant.inStock,
+          deliveryUrl: variant.deliveryUrl,
+          licenseKey: variant.licenseKey,
+        })),
+      };
+      
+      productGroups.push(group);
+    }
+    
+    return productGroups;
   }
 
   async createSupportTicket(ticket: InsertSupportTicket): Promise<SupportTicket> {
