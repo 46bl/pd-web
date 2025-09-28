@@ -9,6 +9,26 @@ import {
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
+export interface Order {
+  id: string;
+  productName: string;
+  productPrice: string;
+  customerEmail?: string;
+  paymentMethod: string;
+  walletAddress: string;
+  status: 'pending' | 'confirmed' | 'completed';
+  createdAt: string;
+  transactionId?: string;
+}
+
+export interface CreateOrderData {
+  productName: string;
+  productPrice: string;
+  customerEmail?: string;
+  paymentMethod: string;
+  walletAddress: string;
+}
+
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -27,6 +47,10 @@ export interface IStorage {
 
   createSupportTicket(ticket: InsertSupportTicket): Promise<SupportTicket>;
   getSupportTickets(): Promise<SupportTicket[]>;
+
+  getOrders(): Promise<Order[]>;
+  createOrder(orderData: CreateOrderData): Promise<Order>;
+  updateOrderStatus(id: string, status: 'pending' | 'confirmed' | 'completed'): Promise<Order | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -34,12 +58,14 @@ export class MemStorage implements IStorage {
   private products: Map<string, Product>;
   private productGroups: Map<string, ProductGroup>;
   private supportTickets: Map<string, SupportTicket>;
+  private orders: Map<string, Order>;
 
   constructor() {
     this.users = new Map();
     this.products = new Map();
     this.productGroups = new Map();
     this.supportTickets = new Map();
+    this.orders = new Map();
     this.initializeProducts();
     this.initializeProductGroups();
   }
@@ -823,6 +849,40 @@ export class MemStorage implements IStorage {
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
+  }
+
+  // Order management methods
+  async getOrders(): Promise<Order[]> {
+    return Array.from(this.orders.values()).sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  async createOrder(orderData: CreateOrderData): Promise<Order> {
+    const order: Order = {
+      id: randomUUID(),
+      productName: orderData.productName,
+      productPrice: orderData.productPrice,
+      customerEmail: orderData.customerEmail,
+      paymentMethod: orderData.paymentMethod,
+      walletAddress: orderData.walletAddress,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
+
+    this.orders.set(order.id, order);
+    return order;
+  }
+
+  async updateOrderStatus(id: string, status: 'pending' | 'confirmed' | 'completed'): Promise<Order | undefined> {
+    const order = this.orders.get(id);
+    if (!order) {
+      return undefined;
+    }
+
+    const updatedOrder = { ...order, status };
+    this.orders.set(id, updatedOrder);
+    return updatedOrder;
   }
 }
 

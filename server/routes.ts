@@ -3,6 +3,13 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertSupportTicketSchema } from "@shared/schema";
 
+// Extend session to include admin authentication
+declare module 'express-session' {
+  interface SessionData {
+    isAdmin?: boolean;
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Get all products
   app.get("/api/products", async (_req, res) => {
@@ -157,7 +164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Admin authentication middleware
   const requireAdminAuth = (req: any, res: any, next: any) => {
-    if (req.session && req.session.isAdmin) {
+    if (req.session?.isAdmin) {
       return next();
     }
     return res.status(401).json({ message: 'Unauthorized' });
@@ -170,7 +177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Simple authentication with provided credentials
       if (username === 'pdcheats' && password === 'Astras08!') {
-        req.session.isAdmin = true;
+        req.session!.isAdmin = true;
         res.json({ success: true, message: 'Login successful' });
       } else {
         res.status(401).json({ message: 'Invalid credentials' });
