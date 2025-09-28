@@ -3,10 +3,12 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertSupportTicketSchema } from "@shared/schema";
 
-// Extend session to include admin authentication
+// Extend session to include admin and customer authentication
 declare module 'express-session' {
   interface SessionData {
     isAdmin?: boolean;
+    customerOrderId?: string;
+    customerEmail?: string;
   }
 }
 
@@ -223,6 +225,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update order license key (admin only)
+  app.patch("/api/admin/orders/:id/license", requireAdminAuth, async (req, res) => {
+    try {
+      const { licenseKey, downloadUrl } = req.body;
+      const order = await storage.updateOrderLicenseKey(req.params.id, licenseKey, downloadUrl);
+      if (!order) {
+        return res.status(404).json({ message: 'Order not found' });
+      }
+      res.json(order);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to update order license key' });
+    }
+  });
+
   // Create order (from checkout)
   app.post("/api/orders", async (req, res) => {
     try {
@@ -230,6 +246,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(order);
     } catch (error) {
       res.status(500).json({ message: 'Failed to create order' });
+    }
+  });
+
+  // Customer authentication middleware
+  const requireCustomerAuth = (req: any, res: any, next: any) => {
+    if (req.session?.customerOrderId && req.session?.customerEmail) {
+      return next();
+    }
+    return res.status(401).json({ message: 'Unauthorized' });
+  };
+
+  // Customer login (by order ID and email)
+  app.post("/api/customer/login", async (req, res) => {
+    try {
+      const { orderId, email } = req.body;
+      
+      if (!orderId || !email) {
+        return res.status(400).json({ message: 'Order ID and email are required' });
+      }
+
+      const order = await storage.getCustomerOrder(orderId, email);
+      if (!order) {
+        return res.status(401).json({ message: 'Invalid order ID or email' });
+      }
+
+      // Store customer session data
+      req.session!.customerOrderId = orderId;
+      req.session!.customerEmail = email;
+      
+      res.json({ success: true, message: 'Login successful' });
+    } catch (error) {
+      res.status(500).json({ message: 'Login failed' });
+    }
+  });
+
+  // Customer auth check
+  app.get("/api/customer/check", requireCustomerAuth, (req, res) => {
+    res.json({ authenticated: true });
+  });
+
+  // Customer logout
+  app.post("/api/customer/logout", (req, res) => {
+    req.session.destroy(() => {
+      res.json({ success: true });
+    });
+  });
+
+  // Get customer orders
+  app.get("/api/customer/orders", requireCustomerAuth, async (req, res) => {
+    try {
+      const { orderId } = req.query;
+      const customerEmail = req.session!.customerEmail!;
+      
+      if (orderId) {
+        // Get specific order
+        const order = await storage.getCustomerOrder(orderId as string, customerEmail);
+        if (!order) {
+          return res.status(404).json({ message: 'Order not found' });
+        }
+        res.json(order);
+      } else {
+        // Get all orders for this customer email
+        const allOrders = await storage.getOrders();
+        const customerOrders = allOrders.filter(
+          order => order.customerEmail?.toLowerCase() === customerEmail.toLowerCase()
+        );
+        res.json(customerOrders);
+      }
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch orders' });
     }
   });
 

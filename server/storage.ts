@@ -19,6 +19,8 @@ export interface Order {
   status: 'pending' | 'confirmed' | 'completed';
   createdAt: string;
   transactionId?: string;
+  licenseKey?: string;
+  downloadUrl?: string;
 }
 
 export interface CreateOrderData {
@@ -51,6 +53,8 @@ export interface IStorage {
   getOrders(): Promise<Order[]>;
   createOrder(orderData: CreateOrderData): Promise<Order>;
   updateOrderStatus(id: string, status: 'pending' | 'confirmed' | 'completed'): Promise<Order | undefined>;
+  updateOrderLicenseKey(id: string, licenseKey: string, downloadUrl?: string): Promise<Order | undefined>;
+  getCustomerOrder(orderId: string, email: string): Promise<Order | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -883,6 +887,27 @@ export class MemStorage implements IStorage {
     const updatedOrder = { ...order, status };
     this.orders.set(id, updatedOrder);
     return updatedOrder;
+  }
+
+  async updateOrderLicenseKey(id: string, licenseKey: string, downloadUrl?: string): Promise<Order | undefined> {
+    const order = this.orders.get(id);
+    if (!order) return undefined;
+    
+    const updatedOrder = { ...order, licenseKey, downloadUrl };
+    this.orders.set(id, updatedOrder);
+    return updatedOrder;
+  }
+
+  async getCustomerOrder(orderId: string, email: string): Promise<Order | undefined> {
+    const order = this.orders.get(orderId);
+    if (!order || !order.customerEmail) return undefined;
+    
+    // Case-insensitive email comparison
+    if (order.customerEmail.toLowerCase() !== email.toLowerCase()) {
+      return undefined;
+    }
+    
+    return order;
   }
 }
 
