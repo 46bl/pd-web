@@ -909,7 +909,7 @@ export class MemStorage implements IStorage {
           {
             id: "dma-firmware",
             name: "Standard",
-            price: "179.99",
+            price: "119.99",
             stockQuantity: 4,
             inStock: true,
             deliveryUrl:
@@ -918,8 +918,8 @@ export class MemStorage implements IStorage {
           },
           {
             id: "dma-firmware-priv",
-            name: "Private 1:1",
-            price: "250.00",
+            name: "1:1 private",
+            price: "199.99",
             stockQuantity: 1,
             inStock: true,
             deliveryUrl:
